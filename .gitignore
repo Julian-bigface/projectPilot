@@ -27,15 +27,46 @@ yarn-error.log*
 
 # Env
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+!**/.env.example
+
+# SQLite variants / WAL
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Logs
+*.log
+logs/
+
+# Test / coverage
+coverage.xml
+*.cover
+.hypothesis/
 
 # Editor / OS
 .DS_Store
 Thumbs.db
+Desktop.ini
+ehthumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+.cursor/
 
 # Vite
 frontend/node_modules/.tmp/
+.vite/
+frontend/.vite/
+
+# Secrets (preventive)
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Tauri desktop (planned)
+src-tauri/target/

@@ -4,6 +4,7 @@
 
 - 新增 **桌面产品工程化指南**（Tauri + FastAPI sidecar + SQLite），覆盖 sidecar 生命周期、AppData、生产 `/api`、迁移、安装与更新路线图，供后续桌面化实施参照。
 - **添加 GitHub 项目对话框**：输入 URL 后自动拉取 GitHub Description 填入简介（网络/Token 失败有提示）；移除「归入文件夹」下拉，按打开入口自动归入（文件夹右键 → 该文件夹；库根「文件夹」行 → 未归类）。
+- **GitHub 发布准备**：扩充根目录 `.gitignore`（环境变量、SQLite WAL、日志、Cursor、Tauri 等）；删除误提交的 `frontend/..env`。
 
 ---
 
@@ -20,6 +21,11 @@
 - **修改**：[`backend/app/api/projects.py`](../backend/app/api/projects.py) — `GET /projects/preview-github`；[`backend/app/schemas/project_github.py`](../backend/app/schemas/project_github.py) — `GithubRepoPreviewRead`。
 - **修改**：[`frontend/src/components/layout/library-sidebar.tsx`](../frontend/src/components/layout/library-sidebar.tsx) — 去文件夹下拉；库根新建 `folder_id: null`；文件夹右键沿用 `folderId`；URL 防抖拉取简介。
 - **契约**：[`contracts/openapi.json`](../contracts/openapi.json) 已导出。
+
+### 3) GitHub 发布：`.gitignore` 与误提交清理
+
+- **修改**：[`.gitignore`](../.gitignore) — 补充 `.env.*` / `!.env.example`、SQLite 变体与 WAL、日志、覆盖率、`.cursor/`、Vite 缓存、密钥扩展名、Tauri `target/`。
+- **删除**：[`frontend/..env`](../frontend/..env) — 误命名副本（非 `.env.example`），已从索引移除。
 
 ---
 
