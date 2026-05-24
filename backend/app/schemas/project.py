@@ -25,6 +25,9 @@ class ProjectBase(BaseModel):
     name: str = Field(..., max_length=512)
     full_name: str = Field(..., max_length=512)
     description: str | None = None
+    description_translated: str | None = None
+    readme_translated: str | None = None
+    translation_target_lang: str | None = Field(None, max_length=16)
     stars: int = Field(default=0, ge=0)
     language: str | None = Field(None, max_length=128)
     author: str | None = Field(None, max_length=512)
@@ -64,6 +67,8 @@ class ProjectUpdate(BaseModel):
     name: str | None = Field(None, max_length=512)
     full_name: str | None = Field(None, max_length=512)
     description: str | None = None
+    description_translated: str | None = None
+    readme_translated: str | None = None
     stars: int | None = Field(None, ge=0)
     language: str | None = Field(None, max_length=128)
     author: str | None = Field(None, max_length=512)

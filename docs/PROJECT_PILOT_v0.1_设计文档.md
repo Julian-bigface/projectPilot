@@ -94,8 +94,8 @@ Docker / npm / pip / pipx / 二进制下载 / 源码编译 / 在线Demo / 云部
 | 区块 | 实现说明 |
 |---|---|
 | 布局 | **Steam 式**全宽英雄区 + 底部分割 **Tab 栏**（README / Release / 笔记）；顶栏 **返回资料库**（与资料库主区一致） |
-| 英雄区 | GitHub 头像、项目名、体验状态、`owner/repo` **外链**；统计行 **Stars / Forks / 推送时间**（进入页自动 `refresh-github?scope=stats`）；简介 **双击编辑**；领域标签行悬停 **「+」** |
-| Tab · README | `GET /projects/{id}/readme`，应用内 **Markdown** 渲染 |
+| 英雄区 | GitHub 头像、项目名、体验状态、`owner/repo` **外链**；统计行 **Stars / Forks / 推送时间**（进入页自动 `refresh-github?scope=stats`）；简介 **双击编辑**、标题旁 **翻译**（Sparkles，译文覆盖 `description`）；领域标签行悬停 **「+」** |
+| Tab · README | `GET /projects/{id}/readme` 应用内 **Markdown**；**分段机器翻译**（`GET .../readme/blocks`、`POST .../translate/readme-block`），译文存 `readme_translated`；**右键** 原文/译文/编辑/重试失败段（见 [`CHANGELOG_2026-05-24.md`](../changelogs/CHANGELOG_2026-05-24.md)） |
 | Tab · Release | `GET /projects/{id}/releases`，**卡片列表**（圆角边框）；**标题** 链至 GitHub Release；`tag_name` 在标题右侧（与标题相同时不重复） |
 | Tab · 笔记 | `projects.notes` 字段，`PATCH /projects/{id}` 显式保存（Ctrl+S） |
 | 更多信息 | Tab 栏右侧 **Popover**：AI 摘要、部署方式、**许可证**、语言、文件夹、收录/更新时间、最新 Release 等（英雄区不再展示许可证与独立 GitHub 按钮） |

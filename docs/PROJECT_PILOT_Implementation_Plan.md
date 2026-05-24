@@ -212,6 +212,7 @@ projects ─────────< project_tags >──────── tag
 - [ ] 项目详情页（**进行中**，见 [`CHANGELOG_2026-05-17.md`](../changelogs/CHANGELOG_2026-05-17.md)）
   - [x] Steam 式英雄区 + README / Release / 笔记 Tab；`GET .../readme`、`GET .../releases`；进入页 `refresh-github?scope=stats`
   - [x] 简介双击编辑；领域标签「+」；Tab 栏「更多信息」（含许可证等）；`notes` 字段与笔记 Tab
+  - [x] **机器翻译**：`/settings/translation`；简介 Sparkles 翻译；README 分段翻译 + 右键菜单 + 重试失败段（见 [`CHANGELOG_2026-05-24.md`](../changelogs/CHANGELOG_2026-05-24.md)）
   - [x] Release 卡片：标题链 GitHub；Tab 内容区无外层边框（仅卡片边框）
   - [ ] 完整展示所有字段 / 站内编辑 name·full_name（详情页已移除身份编辑入口）
   - [ ] 跳转 Demo、部署日志、独立笔记 API 路由

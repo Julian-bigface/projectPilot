@@ -208,14 +208,15 @@ export function ProjectLibraryPreviewPanel({ project: p }: ProjectLibraryPreview
                   </Section>
                 ) : null}
 
-                <Section title="仓库简介">
-                  <ProjectInlineDescription
-                    projectId={p.id}
-                    description={p.description}
-                    fallbackPlaceholder={cardBodyFallback.trim() || "暂无简介。"}
-                    variant="preview"
-                  />
-                </Section>
+                <ProjectInlineDescription
+                  projectId={p.id}
+                  description={p.description}
+                  fallbackPlaceholder={cardBodyFallback.trim() || "暂无简介。"}
+                  variant="preview"
+                  sectionTitle="仓库简介"
+                  showTranslate
+                  onSaved={setPreviewProject}
+                />
 
                 <section className="group/labels space-y-2">
                   <h3 className="text-foreground flex items-center gap-2 text-sm font-semibold tracking-tight">

@@ -22,6 +22,9 @@ export interface Project {
   name: string
   full_name: string
   description: string | null
+  description_translated: string | null
+  readme_translated: string | null
+  translation_target_lang: string | null
   stars: number
   language: string | null
   author: string | null

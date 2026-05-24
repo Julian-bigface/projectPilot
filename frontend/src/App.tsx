@@ -17,6 +17,7 @@ import { ProjectDetailPage } from "@/pages/projects/detail"
 import { MockShelfPage } from "@/pages/projects/mock-shelf"
 import { SettingsGeneralPage } from "@/pages/settings/general"
 import { SettingsGithubPage } from "@/pages/settings/github"
+import { SettingsTranslationPage } from "@/pages/settings/translation"
 import { ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { ThemeAwareToaster } from "@/components/theme-aware-toaster"
@@ -49,6 +50,7 @@ export default function App() {
                   <Route path="/settings" element={<SettingsLayout />}>
                     <Route index element={<SettingsGeneralPage />} />
                     <Route path="github" element={<SettingsGithubPage />} />
+                    <Route path="translation" element={<SettingsTranslationPage />} />
                   </Route>
                   <Route path="/" element={<AppLayout />}>
                     <Route index element={<Navigate to="/library" replace />} />

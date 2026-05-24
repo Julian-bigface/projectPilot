@@ -32,6 +32,12 @@ export function SettingsLayout() {
             <NavLink to="/settings/github" className={({ isActive }) => cn(navItem, isActive && "active")}>
               GitHub
             </NavLink>
+            <NavLink
+              to="/settings/translation"
+              className={({ isActive }) => cn(navItem, isActive && "active")}
+            >
+              翻译
+            </NavLink>
           </nav>
         </aside>
         <main className="min-h-0 flex-1 overflow-auto">

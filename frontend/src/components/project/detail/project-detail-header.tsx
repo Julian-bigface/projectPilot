@@ -116,7 +116,8 @@ export function ProjectDetailHeader({
           description={p.description}
           fallbackPlaceholder={descPlaceholder}
           variant="detail"
-          hideTitle
+          sectionTitle="仓库简介"
+          showTranslate
           onSaved={onProjectUpdated}
         />
 

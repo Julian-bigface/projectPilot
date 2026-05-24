@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings as app_settings
 from app.core.database import get_db
 from app.schemas.settings_github import GithubSettingsRead, GithubSettingsUpdate, GithubTestResponse
+from app.schemas.settings_translation import (
+    TranslationSettingsRead,
+    TranslationSettingsUpdate,
+    TranslationTestResponse,
+)
 from app.services.github_client import test_github_token
 from app.services.settings_github import (
     effective_github_token,
@@ -13,6 +20,13 @@ from app.services.settings_github import (
     resolve_github_settings_for_read,
     set_github_token_row,
 )
+from app.services.settings_translation import (
+    resolve_translation_settings_for_read,
+    set_translation_target_lang,
+)
+from app.services.translation import SUPPORTED_TARGET_LANGS, get_translation_provider
+from app.services.translation.markdown_translate import translate_plain_text
+from app.services.translation.provider import TranslationError
 
 router = APIRouter()
 
@@ -44,3 +58,47 @@ async def post_github_test(db: AsyncSession = Depends(get_db)) -> GithubTestResp
         )
     ok, msg = await test_github_token(token)
     return GithubTestResponse(ok=ok, message=msg)
+
+
+@router.get("/translation", response_model=TranslationSettingsRead)
+async def get_translation_settings(db: AsyncSession = Depends(get_db)) -> TranslationSettingsRead:
+    provider, target_lang = await resolve_translation_settings_for_read(db)
+    return TranslationSettingsRead(
+        provider=provider,
+        target_lang=target_lang,
+        supported_target_langs=list(SUPPORTED_TARGET_LANGS),
+    )
+
+
+@router.put("/translation", response_model=TranslationSettingsRead)
+async def put_translation_settings(
+    body: TranslationSettingsUpdate, db: AsyncSession = Depends(get_db)
+) -> TranslationSettingsRead:
+    if body.target_lang.strip() not in SUPPORTED_TARGET_LANGS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"target_lang 须为: {', '.join(SUPPORTED_TARGET_LANGS)}",
+        )
+    await set_translation_target_lang(db, body.target_lang)
+    await db.commit()
+    provider, target_lang = await resolve_translation_settings_for_read(db)
+    return TranslationSettingsRead(
+        provider=provider,
+        target_lang=target_lang,
+        supported_target_langs=list(SUPPORTED_TARGET_LANGS),
+    )
+
+
+@router.post("/translation/test", response_model=TranslationTestResponse)
+async def post_translation_test(db: AsyncSession = Depends(get_db)) -> TranslationTestResponse:
+    provider_name, target_lang = await resolve_translation_settings_for_read(db)
+    provider = get_translation_provider(provider_name)
+    try:
+        sample = await asyncio.to_thread(
+            translate_plain_text, provider, "Hello", "en", target_lang
+        )
+    except TranslationError as err:
+        return TranslationTestResponse(ok=False, message=str(err))
+    except Exception as err:
+        return TranslationTestResponse(ok=False, message=f"翻译测试失败：{err}")
+    return TranslationTestResponse(ok=True, sample=sample, message="翻译通道可用")

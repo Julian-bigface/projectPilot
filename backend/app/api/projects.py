@@ -13,11 +13,24 @@ from app.models.project import Project
 from app.models.tag import ProjectTag, Tag
 from app.schemas.project import PROJECT_STATES, ProjectCreate, ProjectRead, ProjectUpdate
 from app.schemas.project_github import GithubRepoPreviewRead, ProjectReadmeRead, ProjectReleasesRead
+from app.schemas.project_translate import (
+    ProjectTranslateRequest,
+    ReadmeBlockTranslateRead,
+    ReadmeBlockTranslateRequest,
+    ReadmeBlocksRead,
+)
 from app.services.github_enrich import try_enrich_project_from_github
 from app.services.github_repo_preview import preview_github_repository
 from app.services.project_github_content import fetch_project_readme, fetch_project_releases
 from app.services.project_read import project_to_read, projects_to_read
 from app.services.project_tags_from_topics import sync_project_tags_from_github_topics
+from app.services.project_translate import (
+    list_project_readme_blocks,
+    translate_project_description,
+    translate_project_readme,
+    translate_project_readme_block,
+)
+from app.services.translation.provider import TranslationError
 
 router = APIRouter()
 
@@ -232,6 +245,80 @@ async def get_project_releases(
     if project is None or project.deleted_at is not None:
         raise _not_found_deleted()
     return await fetch_project_releases(db, project)
+
+
+@router.get("/{project_id}/readme/blocks", response_model=ReadmeBlocksRead)
+async def get_project_readme_blocks(
+    project_id: int, db: AsyncSession = Depends(get_db)
+) -> ReadmeBlocksRead:
+    project = await db.get(Project, project_id)
+    if project is None or project.deleted_at is not None:
+        raise _not_found_deleted()
+    try:
+        blocks = await list_project_readme_blocks(db, project)
+    except HTTPException:
+        raise
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_424_FAILED_DEPENDENCY,
+            detail="无法获取 README 分段，请稍后重试。",
+        ) from err
+    return ReadmeBlocksRead(blocks=blocks)
+
+
+@router.post("/{project_id}/translate/readme-block", response_model=ReadmeBlockTranslateRead)
+async def translate_project_readme_block_endpoint(
+    project_id: int,
+    body: ReadmeBlockTranslateRequest,
+    db: AsyncSession = Depends(get_db),
+) -> ReadmeBlockTranslateRead:
+    project = await db.get(Project, project_id)
+    if project is None or project.deleted_at is not None:
+        raise _not_found_deleted()
+    try:
+        translated = await translate_project_readme_block(db, body.content)
+    except TranslationError as err:
+        raise HTTPException(
+            status_code=status.HTTP_424_FAILED_DEPENDENCY,
+            detail=str(err),
+        ) from err
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_424_FAILED_DEPENDENCY,
+            detail="段落翻译失败，请稍后重试。",
+        ) from err
+    return ReadmeBlockTranslateRead(translated=translated)
+
+
+@router.post("/{project_id}/translate", response_model=ProjectRead)
+async def translate_project(
+    project_id: int,
+    body: ProjectTranslateRequest,
+    db: AsyncSession = Depends(get_db),
+) -> ProjectRead:
+    project = await db.get(Project, project_id)
+    if project is None or project.deleted_at is not None:
+        raise _not_found_deleted()
+    try:
+        if "description" in body.fields:
+            await translate_project_description(db, project)
+        if "readme" in body.fields:
+            await translate_project_readme(db, project)
+    except TranslationError as err:
+        raise HTTPException(
+            status_code=status.HTTP_424_FAILED_DEPENDENCY,
+            detail=str(err),
+        ) from err
+    except HTTPException:
+        raise
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_424_FAILED_DEPENDENCY,
+            detail="翻译失败，请稍后重试。",
+        ) from err
+    await db.commit()
+    await db.refresh(project)
+    return await project_to_read(db, project)
 
 
 @router.patch("/{project_id}", response_model=ProjectRead)

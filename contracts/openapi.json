@@ -549,6 +549,152 @@
         }
       }
     },
+    "/projects/{project_id}/readme/blocks": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Get Project Readme Blocks",
+        "operationId": "get_project_readme_blocks_projects__project_id__readme_blocks_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadmeBlocksRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/translate/readme-block": {
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Translate Project Readme Block Endpoint",
+        "operationId": "translate_project_readme_block_endpoint_projects__project_id__translate_readme_block_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadmeBlockTranslateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadmeBlockTranslateRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects/{project_id}/translate": {
+      "post": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Translate Project",
+        "operationId": "translate_project_projects__project_id__translate_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectTranslateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/folders/reorder": {
       "post": {
         "tags": [
@@ -838,6 +984,87 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/GithubTestResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/translation": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Get Translation Settings",
+        "operationId": "get_translation_settings_settings_translation_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationSettingsRead"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Put Translation Settings",
+        "operationId": "put_translation_settings_settings_translation_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TranslationSettingsUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationSettingsRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/settings/translation/test": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Post Translation Test",
+        "operationId": "post_translation_test_settings_translation_test_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationTestResponse"
                 }
               }
             }
@@ -1641,6 +1868,40 @@
             ],
             "title": "Description"
           },
+          "description_translated": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Translated"
+          },
+          "readme_translated": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Readme Translated"
+          },
+          "translation_target_lang": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Translation Target Lang"
+          },
           "stars": {
             "type": "integer",
             "minimum": 0.0,
@@ -1823,6 +2084,40 @@
               }
             ],
             "title": "Description"
+          },
+          "description_translated": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Translated"
+          },
+          "readme_translated": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Readme Translated"
+          },
+          "translation_target_lang": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Translation Target Lang"
           },
           "stars": {
             "type": "integer",
@@ -2130,6 +2425,28 @@
         "type": "object",
         "title": "ProjectReleasesRead"
       },
+      "ProjectTranslateRequest": {
+        "properties": {
+          "fields": {
+            "items": {
+              "type": "string",
+              "enum": [
+                "description",
+                "readme"
+              ]
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Fields",
+            "description": "要翻译的字段：description（简介）或 readme"
+          }
+        },
+        "type": "object",
+        "required": [
+          "fields"
+        ],
+        "title": "ProjectTranslateRequest"
+      },
       "ProjectUpdate": {
         "properties": {
           "github_url": {
@@ -2178,6 +2495,28 @@
               }
             ],
             "title": "Description"
+          },
+          "description_translated": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description Translated"
+          },
+          "readme_translated": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Readme Translated"
           },
           "stars": {
             "anyOf": [
@@ -2309,6 +2648,47 @@
         },
         "type": "object",
         "title": "ProjectUpdate"
+      },
+      "ReadmeBlockTranslateRead": {
+        "properties": {
+          "translated": {
+            "type": "string",
+            "title": "Translated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "translated"
+        ],
+        "title": "ReadmeBlockTranslateRead"
+      },
+      "ReadmeBlockTranslateRequest": {
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Content",
+            "description": "待翻译的 Markdown 段落"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "title": "ReadmeBlockTranslateRequest"
+      },
+      "ReadmeBlocksRead": {
+        "properties": {
+          "blocks": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Blocks"
+          }
+        },
+        "type": "object",
+        "title": "ReadmeBlocksRead"
       },
       "TagBrief": {
         "properties": {
@@ -2529,6 +2909,84 @@
         },
         "type": "object",
         "title": "TagUpdate"
+      },
+      "TranslationSettingsRead": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "description": "翻译 Provider（首版固定 google）"
+          },
+          "target_lang": {
+            "type": "string",
+            "title": "Target Lang",
+            "description": "目标语言 BCP-47"
+          },
+          "supported_target_langs": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Supported Target Langs",
+            "description": "可选目标语言列表"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider",
+          "target_lang"
+        ],
+        "title": "TranslationSettingsRead"
+      },
+      "TranslationSettingsUpdate": {
+        "properties": {
+          "target_lang": {
+            "type": "string",
+            "maxLength": 16,
+            "minLength": 2,
+            "title": "Target Lang"
+          }
+        },
+        "type": "object",
+        "required": [
+          "target_lang"
+        ],
+        "title": "TranslationSettingsUpdate"
+      },
+      "TranslationTestResponse": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "sample": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sample"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "TranslationTestResponse"
       },
       "ValidationError": {
         "properties": {

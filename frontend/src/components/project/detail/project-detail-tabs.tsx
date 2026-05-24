@@ -62,11 +62,7 @@ export function ProjectDetailTabs({ project }: ProjectDetailTabsProps) {
       </div>
 
       <TabsContent value="readme" className={projectDetailTabContentClass}>
-        <ProjectReadmeTab
-          projectId={project.id}
-          githubUrl={project.github_url}
-          enabled={tab === "readme"}
-        />
+        <ProjectReadmeTab project={project} enabled={tab === "readme"} />
       </TabsContent>
 
       <TabsContent value="release" className={projectDetailTabContentClass}>

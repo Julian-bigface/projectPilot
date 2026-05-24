@@ -157,6 +157,21 @@ def _migrate_sqlite_folder_description_and_tags(sync_conn) -> None:
         )
 
 
+def _migrate_sqlite_add_project_translation_columns(sync_conn) -> None:
+    from sqlalchemy import inspect, text
+
+    insp = inspect(sync_conn)
+    if not insp.has_table("projects"):
+        return
+    cols = {c["name"] for c in insp.get_columns("projects")}
+    if "description_translated" not in cols:
+        sync_conn.execute(text("ALTER TABLE projects ADD COLUMN description_translated TEXT"))
+    if "readme_translated" not in cols:
+        sync_conn.execute(text("ALTER TABLE projects ADD COLUMN readme_translated TEXT"))
+    if "translation_target_lang" not in cols:
+        sync_conn.execute(text("ALTER TABLE projects ADD COLUMN translation_target_lang TEXT"))
+
+
 async def init_db() -> None:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -168,6 +183,7 @@ async def init_db() -> None:
         await conn.run_sync(_migrate_sqlite_tags_category_and_drop_tag_type)
         await conn.run_sync(_migrate_sqlite_projects_github_url_allow_duplicates)
         await conn.run_sync(_migrate_sqlite_add_project_notes)
+        await conn.run_sync(_migrate_sqlite_add_project_translation_columns)
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:

@@ -20,7 +20,7 @@ uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
 
 - 健康检查：`GET http://127.0.0.1:8000/health` → `{"status":"ok"}`
 - OpenAPI：`http://127.0.0.1:8000/docs`，或 `http://127.0.0.1:8000/openapi.json`
-- **标签与分类**：`GET/POST/PATCH/DELETE /tags`（`category_id` 可空表示未分类）、`GET/POST/PATCH/DELETE /tag-categories`；列表含 `usage_count` 与可选 `category_name`。**项目**：`GET /projects` 默认不含回收站；`deleted_only=true` 仅回收站；`DELETE /projects/:id` 为软删；`POST /projects/:id/restore` 恢复；`DELETE /projects/:id/permanent` 彻底删除。契约见 [`contracts/openapi.json`](contracts/openapi.json)。
+- **标签与分类**：`GET/POST/PATCH/DELETE /tags`（`category_id` 可空表示未分类）、`GET/POST/PATCH/DELETE /tag-categories`；列表含 `usage_count` 与可选 `category_name`。**项目**：`GET /projects` 默认不含回收站；`deleted_only=true` 仅回收站；`DELETE /projects/:id` 为软删；`POST /projects/:id/restore` 恢复；`DELETE /projects/:id/permanent` 彻底删除；`POST /projects/:id/translate` 机器翻译简介/README（译文存 DB）。**README 分段**：`GET /projects/:id/readme/blocks`、`POST /projects/:id/translate/readme-block`（配合 Web 逐段翻译）。**翻译设置**：`GET/PUT /settings/translation`、 `POST /settings/translation/test`（免费 Google 通道，目标语言可配置）。契约见 [`contracts/openapi.json`](contracts/openapi.json)。
 
 ### 契约文件（变更 API 时必更新）
 
@@ -76,7 +76,9 @@ npm run dev
 
 资料库表格与侧栏中的 **GitHub 项目** 链至 **`/projects/:id`**；**`/projects`**、**`/projects/board`** 为 Refine 列表与看板；**`/projects/mock-shelf`** 为 Phase 1 **模拟列表占位**（纯常量）。
 
-**项目详情 `/projects/:id`**（资料库 **双击** 卡片进入）：**Steam 式**英雄区（GitHub 头像、项目名、体验状态、`owner/repo` 外链、Stars/Forks/推送时间、简介 **双击** 编辑、领域标签行悬停 **「+」**）；进入页自动 **`POST /refresh-github?scope=stats`**。**Tab**：**README**（应用内 Markdown）、**Release**（卡片列表，**标题** 打开 GitHub Release）、**笔记**（`notes` 字段，`PATCH` 保存）；Tab 栏右侧 **「更多信息」**（AI 摘要、部署方式、**许可证**、语言、文件夹与时间等）。顶栏 **返回资料库**。详见 [`changelogs/CHANGELOG_2026-05-17.md`](changelogs/CHANGELOG_2026-05-17.md)。
+**项目详情 `/projects/:id`**（资料库 **双击** 卡片进入）：**Steam 式**英雄区（GitHub 头像、项目名、体验状态、`owner/repo` 外链、Stars/Forks/推送时间、简介 **双击** 编辑、简介标题旁 **翻译**（Sparkles，译文覆盖 `description`）、领域标签行悬停 **「+」**）；进入页自动 **`POST /refresh-github?scope=stats`**。**Tab**：**README**（应用内 Markdown；**右键菜单**：显示原文 / 显示译文 / 编辑译文 / 重新翻译或重试失败段；**分段翻译** + Skeleton，完成后停留译文并提示）、**Release**（卡片列表，**标题** 打开 GitHub Release）、**笔记**（`notes` 字段，`PATCH` 保存）；Tab 栏右侧 **「更多信息」**（AI 摘要、部署方式、**许可证**、语言、文件夹与时间等）。顶栏 **返回资料库**。详见 [`changelogs/CHANGELOG_2026-05-17.md`](changelogs/CHANGELOG_2026-05-17.md)、[`changelogs/CHANGELOG_2026-05-24.md`](changelogs/CHANGELOG_2026-05-24.md)。
+
+**翻译**：设置 → **翻译**（`/settings/translation`）配置目标语言。**简介**：资料库预览与项目详情中标题旁 **翻译** 按钮（传统机器翻译，无需 API Key；译文写入 `description` 并可编辑）。**README**：详情 Tab 内 **右键** 切换原文/译文、编辑 Markdown 译文、全文或 **仅重试失败段** 重新翻译；长文 **逐段** 请求后端（限流退避 + 失败保留原文）。`readme_translated` 存 SQLite，`PATCH` 可编辑。
 
 ## 实现进度提示
 
