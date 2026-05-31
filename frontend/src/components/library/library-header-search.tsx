@@ -9,7 +9,7 @@ export function LibraryHeaderSearch() {
   return (
     <div
       className={cn(
-        "group/search relative flex h-8 w-full items-center rounded-md",
+        "group/search relative flex h-8 w-full min-w-0 items-center rounded-md",
         "border border-transparent bg-muted/25",
         "transition-[background-color,box-shadow]",
         "hover:bg-background hover:shadow-[inset_0_0_0_1px_hsl(var(--border)/0.5)]",
@@ -25,7 +25,7 @@ export function LibraryHeaderSearch() {
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
         placeholder="搜索"
-        className="text-foreground placeholder:text-muted-foreground/50 h-8 w-full rounded-md border-0 bg-transparent py-0 pr-3 pl-8 text-xs shadow-none outline-none focus-visible:outline-none focus-visible:ring-0"
+        className="text-foreground placeholder:text-muted-foreground/50 h-8 min-w-0 w-full rounded-md border-0 bg-transparent py-0 pr-3 pl-8 text-xs shadow-none outline-none focus-visible:outline-none focus-visible:ring-0"
         aria-label="搜索项目"
       />
     </div>

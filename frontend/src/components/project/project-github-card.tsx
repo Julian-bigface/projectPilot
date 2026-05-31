@@ -6,6 +6,7 @@ import { useNavigate } from "react-router"
 import { toast } from "sonner"
 
 import { projectDragId } from "@/components/layout/library-dnd-ids"
+import { ExternalLink } from "@/components/common/external-link"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,12 +31,15 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useLibraryFeatureDrawer } from "@/context/library-feature-drawer"
 import { useLibrarySelection } from "@/context/library-selection"
 import { useLibraryProjectPreview } from "@/context/library-project-preview"
+import { useOptionalProjectLibrary } from "@/context/project-library"
 import { formatGithubPushedRelative } from "@/lib/github-relative-time"
+import { collectFolderFilterEntries, folderTreeEntryPaddingLeft } from "@/lib/library-tree"
+import { plApiPath } from "@/lib/pl-api"
 import { invalidateProjectRelated } from "@/lib/invalidate-project-queries"
 import { parseGithubOwner, projectSubtitle } from "@/lib/project-display"
 import { domainTagPillClass } from "@/lib/topic-pill-palette"
 import { cn } from "@/lib/utils"
-import type { FolderRow } from "@/types/library"
+import type { LibraryTreeResponse } from "@/types/library"
 import type { Project } from "@/types/project"
 
 type ProjectGithubCardProps = {
@@ -164,27 +168,28 @@ export function ProjectGithubCard({
   const showLibraryChrome = libraryCard && !trashMode
   const dragEnabled = draggableProjectId !== undefined && !trashMode
 
+  const plCtx = useOptionalProjectLibrary()
+  const libraryId = plCtx?.libraryId ?? p.project_library_id
+
   const foldersQuery = useQuery({
-    queryKey: ["folders", "flat"],
-    queryFn: async (): Promise<FolderRow[]> => {
-      const res = await fetch("/api/folders")
+    queryKey: ["library-tree", libraryId, "move-menu"],
+    queryFn: async (): Promise<LibraryTreeResponse> => {
+      const res = await fetch(plApiPath(libraryId, "/library/tree"))
       if (!res.ok) {
         throw new Error(await parseErrorMessage(res))
       }
-      return res.json() as Promise<FolderRow[]>
+      return res.json() as Promise<LibraryTreeResponse>
     },
-    enabled: showLibraryChrome,
+    enabled: showLibraryChrome && libraryId != null,
   })
 
-  const sortedFolders = useMemo(() => {
-    const rows = foldersQuery.data
-    if (!rows?.length) {
+  const folderTreeEntries = useMemo(() => {
+    const roots = foldersQuery.data?.folders
+    if (!roots?.length) {
       return []
     }
-    return [...rows].sort((a, b) =>
-      a.sort_order !== b.sort_order ? a.sort_order - b.sort_order : a.name.localeCompare(b.name, "zh-CN")
-    )
-  }, [foldersQuery.data])
+    return collectFolderFilterEntries(roots)
+  }, [foldersQuery.data?.folders])
 
   const moveMutation = useMutation({
     mutationFn: async (folderId: number | null) => {
@@ -378,10 +383,8 @@ export function ProjectGithubCard({
               </p>
               <div className="text-muted-foreground mt-0.5 flex min-w-0 items-center gap-1 text-xs leading-snug">
                 <GithubMark className="size-3 shrink-0 opacity-80" aria-hidden />
-                <a
+                <ExternalLink
                   href={p.github_url}
-                  target="_blank"
-                  rel="noreferrer"
                   title={p.github_url}
                   className="text-primary w-max min-w-0 max-w-full shrink truncate underline-offset-2 hover:underline"
                   onPointerDown={stopCardPointer}
@@ -389,7 +392,7 @@ export function ProjectGithubCard({
                   onKeyDown={(e) => e.stopPropagation()}
                 >
                   {p.full_name}
-                </a>
+                </ExternalLink>
               </div>
             </div>
           </div>
@@ -569,20 +572,24 @@ export function ProjectGithubCard({
               <ContextMenuSeparator />
               <ContextMenuSub>
                 <ContextMenuSubTrigger>移动到…</ContextMenuSubTrigger>
-                <ContextMenuSubContent className="max-h-52 min-w-[10rem] overflow-y-auto">
+                <ContextMenuSubContent
+                  className="main-auto-scrollbar max-h-52 min-w-[10rem] overflow-y-auto overscroll-contain"
+                  onWheel={(e) => e.stopPropagation()}
+                >
                   <ContextMenuItem
                     disabled={p.folder_id === null || moveMutation.isPending}
                     onSelect={() => moveMutation.mutate(null)}
                   >
                     未归类
                   </ContextMenuItem>
-                  {sortedFolders.map((f) => (
+                  {folderTreeEntries.map((entry) => (
                     <ContextMenuItem
-                      key={f.id}
-                      disabled={f.id === p.folder_id || moveMutation.isPending}
-                      onSelect={() => moveMutation.mutate(f.id)}
+                      key={entry.id}
+                      disabled={entry.id === p.folder_id || moveMutation.isPending}
+                      onSelect={() => moveMutation.mutate(entry.id)}
+                      style={{ paddingLeft: `${folderTreeEntryPaddingLeft(entry.depth)}px` }}
                     >
-                      {f.name}
+                      {entry.name}
                     </ContextMenuItem>
                   ))}
                 </ContextMenuSubContent>

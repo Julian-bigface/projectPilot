@@ -12,6 +12,11 @@ class Project(Base):
     __tablename__ = "projects"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_library_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("project_libraries.id", ondelete="CASCADE"),
+        index=True,
+    )
     folder_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("folders.id", ondelete="SET NULL"), nullable=True, index=True
     )
@@ -21,6 +26,17 @@ class Project(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     description_translated: Mapped[str | None] = mapped_column(Text, nullable=True)
     readme_translated: Mapped[str | None] = mapped_column(Text, nullable=True)
+    readme_cached: Mapped[str | None] = mapped_column(Text, nullable=True)
+    readme_cached_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    readme_github_sha: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    readme_cached_path: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    releases_cached: Mapped[list[dict] | None] = mapped_column(JSON, nullable=True)
+    releases_cached_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    releases_cache_fingerprint: Mapped[str | None] = mapped_column(String(512), nullable=True)
     translation_target_lang: Mapped[str | None] = mapped_column(String(16), nullable=True)
     stars: Mapped[int] = mapped_column(Integer, default=0)
     language: Mapped[str | None] = mapped_column(String(128), nullable=True)

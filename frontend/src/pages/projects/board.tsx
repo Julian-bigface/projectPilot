@@ -1,6 +1,7 @@
 import { useList, useUpdate } from "@refinedev/core"
 import { useMemo, useState } from "react"
 
+import { ExternalLink } from "@/components/common/external-link"
 import { projectSubtitle } from "@/lib/project-display"
 import type { Project, ProjectState } from "@/types/project"
 import { PROJECT_STATES } from "@/types/project"
@@ -70,14 +71,12 @@ export function ProjectBoardPage() {
                   >
                     <div className="font-medium">{p.name}</div>
                     <div className="text-muted-foreground line-clamp-2 text-xs">{projectSubtitle(p)}</div>
-                    <a
+                    <ExternalLink
                       href={p.github_url}
-                      target="_blank"
-                      rel="noreferrer"
                       className="text-primary truncate text-xs underline-offset-2 hover:underline"
                     >
                       {p.github_url}
-                    </a>
+                    </ExternalLink>
                     <label className="flex flex-col gap-1 text-xs">
                       <span className="text-muted-foreground">状态</span>
                       <select

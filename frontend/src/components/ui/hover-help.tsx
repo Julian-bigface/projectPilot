@@ -8,10 +8,11 @@ type HoverHelpProps = {
   children: ReactNode
   /** Icon alignment when placed beside labels */
   className?: string
+  contentClassName?: string
 }
 
 /** Compact (?） trigger; put longer copy in children (shown in hover card). */
-export function HoverHelp({ children, className }: HoverHelpProps) {
+export function HoverHelp({ children, className, contentClassName }: HoverHelpProps) {
   return (
     <HoverCard defaultOpen={false} openDelay={500} closeDelay={120}>
       <HoverCardTrigger asChild>
@@ -28,7 +29,13 @@ export function HoverHelp({ children, className }: HoverHelpProps) {
           <CircleHelp className="size-3.5" aria-hidden />
         </button>
       </HoverCardTrigger>
-      <HoverCardContent className="text-foreground w-80 space-y-2 text-xs leading-relaxed" side="top">
+      <HoverCardContent
+        className={cn(
+          "text-foreground w-72 space-y-3 text-xs leading-relaxed",
+          contentClassName
+        )}
+        side="top"
+      >
         {children}
       </HoverCardContent>
     </HoverCard>

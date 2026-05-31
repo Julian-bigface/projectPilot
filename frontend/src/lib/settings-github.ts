@@ -1,10 +1,22 @@
 export type GithubSettingsRead = {
   has_token: boolean
   token_preview: string | null
+  token_length: number | null
 }
 
 export type GithubSettingsUpdate = {
   token: string | null
+}
+
+export type GithubProfileRead = {
+  login: string
+  name: string | null
+  avatar_url: string
+  html_url: string
+}
+
+export type GithubTestRequest = {
+  token?: string | null
 }
 
 export type GithubTestResponse = {
@@ -48,8 +60,22 @@ export async function putGithubSettings(body: GithubSettingsUpdate): Promise<Git
   return res.json() as Promise<GithubSettingsRead>
 }
 
-export async function postGithubTest(): Promise<GithubTestResponse> {
-  const res = await fetch("/api/settings/github/test", { method: "POST" })
+export async function fetchGithubProfile(): Promise<GithubProfileRead> {
+  const res = await fetch("/api/settings/github/profile")
+  if (!res.ok) {
+    throw new Error(await parseErrorMessage(res))
+  }
+  return res.json() as Promise<GithubProfileRead>
+}
+
+export async function postGithubTest(token?: string): Promise<GithubTestResponse> {
+  const body: GithubTestRequest | undefined =
+    token !== undefined && token.trim() !== "" ? { token: token.trim() } : undefined
+  const res = await fetch("/api/settings/github/test", {
+    method: "POST",
+    headers: body ? { "Content-Type": "application/json" } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  })
   if (!res.ok) {
     throw new Error(await parseErrorMessage(res))
   }

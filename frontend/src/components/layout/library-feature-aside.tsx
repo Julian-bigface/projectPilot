@@ -25,7 +25,7 @@ export function LibraryFeatureAside() {
   const location = useLocation()
   const { libraryScope, pendingFolderId } = useLibrarySelection()
   const { previewProject, setPreviewProject } = useLibraryProjectPreview()
-  const onLibrary = location.pathname === "/library"
+  const onLibrary = /^\/libraries\/\d+\/?$/.test(location.pathname)
 
   const folderScopeId = libraryScope.kind === "folder" ? libraryScope.folderId : null
 

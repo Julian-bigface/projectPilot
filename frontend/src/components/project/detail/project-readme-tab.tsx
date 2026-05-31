@@ -1,11 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ExternalLink, Loader2 } from "lucide-react"
-import { useCallback, useEffect, useRef, useState } from "react"
-import { Link } from "react-router"
+import { ExternalLink as ExternalLinkIcon, Loader2, RefreshCw } from "lucide-react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent } from "react"
 import { toast } from "sonner"
 
+import { ExternalLink } from "@/components/common/external-link"
 import { MarkdownBlockSkeleton } from "@/components/project/detail/markdown-block-skeleton"
 import { MarkdownContent } from "@/components/project/detail/markdown-content"
+import { ReadmeTocPanel } from "@/components/project/detail/readme-toc-panel"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,6 +17,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { GithubSettingsButton } from "@/components/common/github-settings-link"
 import { Button } from "@/components/ui/button"
 import {
   ContextMenu,
@@ -28,7 +30,10 @@ import {
 } from "@/components/ui/context-menu"
 import { Textarea } from "@/components/ui/textarea"
 import { parseApiErrorMessage } from "@/lib/api-error"
+import { useProjectReadmeStatus } from "@/context/project-github-cache"
+import { extractMarkdownHeadings, syncDomMarkdownHeadings, type MarkdownHeading } from "@/lib/markdown-toc"
 import { invalidateProjectRelated } from "@/lib/invalidate-project-queries"
+import { fetchProjectReadme } from "@/lib/project-readme"
 import {
   detectFailedReadmeBlockIndices,
   fetchReadmeBlocks,
@@ -38,7 +43,6 @@ import {
   splitReadmeTranslatedBlocks,
   translateReadmeBlockWithRetry,
 } from "@/lib/project-translate"
-import type { ProjectReadme } from "@/types/project-github"
 import type { Project } from "@/types/project"
 
 export type ProjectReadmeTabProps = {
@@ -60,6 +64,8 @@ type ReadmeTranslateMode = "full" | "retry-failed"
 
 export function ProjectReadmeTab({ project, enabled }: ProjectReadmeTabProps) {
   const queryClient = useQueryClient()
+  const { syncState: readmeSyncState, defaultReadmeQuery, syncFromGithub } =
+    useProjectReadmeStatus()
   const [view, setView] = useState<ReadmeView>("source")
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(project.readme_translated ?? "")
@@ -69,24 +75,55 @@ export function ProjectReadmeTab({ project, enabled }: ProjectReadmeTabProps) {
   const [retryFailedCount, setRetryFailedCount] = useState(0)
   const [translating, setTranslating] = useState(false)
   const [progressiveChunks, setProgressiveChunks] = useState<ReadmeBlockChunk[] | null>(null)
+  const [readmePath, setReadmePath] = useState<string | null>(null)
+  const [tocOpen, setTocOpen] = useState(true)
+  const [tocEdgeHover, setTocEdgeHover] = useState(false)
+  const [tocHeadings, setTocHeadings] = useState<MarkdownHeading[]>([])
   const translateRunRef = useRef(0)
   const autoTranslateTriggeredRef = useRef(false)
+  const readmeContentRef = useRef<HTMLDivElement>(null)
+  const readmeLayoutRef = useRef<HTMLDivElement>(null)
 
-  const sourceQuery = useQuery({
-    queryKey: ["projects", project.id, "readme"],
-    queryFn: async (): Promise<ProjectReadme> => {
-      const res = await fetch(`/api/projects/${project.id}/readme`)
-      if (!res.ok) {
-        throw new Error(await parseApiErrorMessage(res))
-      }
-      return res.json() as Promise<ProjectReadme>
-    },
-    enabled,
-    staleTime: 5 * 60 * 1000,
+  const isDefaultReadme = readmePath === null
+  const readmeQueryKey = readmePath ?? "default"
+
+  const subPathQuery = useQuery({
+    queryKey: ["projects", project.id, "readme", readmeQueryKey],
+    queryFn: () => fetchProjectReadme(project.id, readmePath, { fresh: false }),
+    enabled: enabled && !isDefaultReadme,
+    staleTime: Number.POSITIVE_INFINITY,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
   })
+
+  const sourceQuery = isDefaultReadme ? defaultReadmeQuery : subPathQuery
+
+  const readmeBasePath = readmePath ?? sourceQuery.data?.path ?? null
+
+  const handleReadmeNavigate = useCallback(
+    (path: string) => {
+      if (path === readmePath) {
+        return
+      }
+      if (view === "translated") {
+        setView("source")
+        toast.message("已切换文稿", {
+          description: "此文稿仅显示 GitHub 原文；机器翻译针对仓库默认 README。",
+        })
+      }
+      setReadmePath(path)
+      setEditing(false)
+      setSaveError(null)
+      setProgressiveChunks(null)
+      translateRunRef.current += 1
+    },
+    [readmePath, view]
+  )
 
   useEffect(() => {
     setView("source")
+    setReadmePath(null)
     setEditing(false)
     setDraft(project.readme_translated ?? "")
     setDirty(false)
@@ -96,6 +133,12 @@ export function ProjectReadmeTab({ project, enabled }: ProjectReadmeTabProps) {
     translateRunRef.current += 1
     autoTranslateTriggeredRef.current = false
   }, [project.id])
+
+  useEffect(() => {
+    if (!isDefaultReadme && view === "translated") {
+      setView("source")
+    }
+  }, [isDefaultReadme, view])
 
   useEffect(() => {
     if (!editing && !dirty && !translating) {
@@ -130,6 +173,10 @@ export function ProjectReadmeTab({ project, enabled }: ProjectReadmeTabProps) {
 
   const startProgressiveTranslate = useCallback(
     async (mode: ReadmeTranslateMode = "full") => {
+      if (!isDefaultReadme) {
+        toast.message("仅默认 README 支持机器翻译")
+        return
+      }
       const runId = ++translateRunRef.current
       setTranslating(true)
       setView("translated")
@@ -273,7 +320,7 @@ export function ProjectReadmeTab({ project, enabled }: ProjectReadmeTabProps) {
         }
       }
     },
-    [project.id, project.readme_translated, queryClient, saveMutation]
+    [isDefaultReadme, project.id, project.readme_translated, queryClient, saveMutation]
   )
 
   const openRetranslateDialog = useCallback(async () => {
@@ -301,17 +348,92 @@ export function ProjectReadmeTab({ project, enabled }: ProjectReadmeTabProps) {
     saveMutation.mutate(draft)
   }, [draft, saveMutation])
 
-  const hasTranslated = Boolean(project.readme_translated?.trim())
+  const hasTranslated = isDefaultReadme && Boolean(project.readme_translated?.trim())
   const showProgressive = Boolean(progressiveChunks?.length)
   const sourceReady = !sourceQuery.isLoading && !sourceQuery.isError
 
+  const markdownNavProps = {
+    githubUrl: project.github_url,
+    readmeBasePath,
+    onReadmeNavigate: handleReadmeNavigate,
+    enableHtml: true,
+  }
+
+  const tocMarkdown = useMemo(() => {
+    if (editing) return ""
+    if (view === "source") {
+      if (sourceQuery.isLoading || sourceQuery.isError) return ""
+      return sourceQuery.data?.content?.trim() ?? ""
+    }
+    if (showProgressive && progressiveChunks?.length) {
+      return progressiveChunks
+        .map((chunk) =>
+          chunk.status === "done" && chunk.translated !== undefined ? chunk.translated : chunk.source
+        )
+        .join("\n\n")
+    }
+    if (translating && !hasTranslated) {
+      return sourceQuery.data?.content?.trim() ?? ""
+    }
+    return project.readme_translated?.trim() ?? ""
+  }, [
+    editing,
+    view,
+    sourceQuery.isLoading,
+    sourceQuery.isError,
+    sourceQuery.data?.content,
+    showProgressive,
+    progressiveChunks,
+    translating,
+    hasTranslated,
+    project.readme_translated,
+  ])
+
+  useLayoutEffect(() => {
+    const root = readmeContentRef.current
+    if (!root || editing || !tocMarkdown) {
+      setTocHeadings([])
+      return
+    }
+
+    const sync = () => {
+      const synced = syncDomMarkdownHeadings(root)
+      setTocHeadings(synced.length > 0 ? synced : extractMarkdownHeadings(tocMarkdown))
+    }
+
+    sync()
+    const raf = window.requestAnimationFrame(sync)
+    return () => window.cancelAnimationFrame(raf)
+  }, [tocMarkdown, editing, view, readmePath, showProgressive, progressiveChunks, translating])
+
+  const showToc = tocHeadings.length > 0
+
+  const handleReadmeLayoutMouseMove = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      if (!showToc) {
+        setTocEdgeHover(false)
+        return
+      }
+      const rect = readmeLayoutRef.current?.getBoundingClientRect()
+      if (!rect) return
+      const tocPanelWidth = window.matchMedia("(min-width: 640px)").matches ? 224 : 208
+      const boundaryX = tocOpen ? rect.right - tocPanelWidth : rect.right
+      setTocEdgeHover(Math.abs(event.clientX - boundaryX) <= 48)
+    },
+    [showToc, tocOpen]
+  )
+
   const handleViewChange = useCallback((next: string) => {
+    if (next === "translated" && !isDefaultReadme) {
+      toast.message("机器翻译仅适用于仓库默认 README")
+      return
+    }
     if (next === "source" || next === "translated") {
       setView(next)
       setEditing(false)
       setSaveError(null)
     }
-  }, [])
+  }, [isDefaultReadme])
 
   useEffect(() => {
     if (view !== "translated") {
@@ -319,6 +441,7 @@ export function ProjectReadmeTab({ project, enabled }: ProjectReadmeTabProps) {
       return
     }
     if (
+      !isDefaultReadme ||
       hasTranslated ||
       translating ||
       showProgressive ||
@@ -332,6 +455,7 @@ export function ProjectReadmeTab({ project, enabled }: ProjectReadmeTabProps) {
     void startProgressiveTranslate("full")
   }, [
     view,
+    isDefaultReadme,
     hasTranslated,
     translating,
     showProgressive,
@@ -370,11 +494,11 @@ export function ProjectReadmeTab({ project, enabled }: ProjectReadmeTabProps) {
             {chunk.status === "done" && chunk.translated !== undefined ? (
               chunk.fallback ? (
                 <div className="space-y-1">
-                  <MarkdownContent content={chunk.translated} />
+                  <MarkdownContent content={chunk.translated} {...markdownNavProps} />
                   <p className="text-muted-foreground text-xs">本段翻译失败，已保留原文</p>
                 </div>
               ) : (
-                <MarkdownContent content={chunk.translated} />
+                <MarkdownContent content={chunk.translated} {...markdownNavProps} />
               )
             ) : chunk.status === "error" ? (
               <p className="text-destructive text-sm">本段翻译失败</p>
@@ -405,19 +529,19 @@ export function ProjectReadmeTab({ project, enabled }: ProjectReadmeTabProps) {
           <p className="text-destructive text-sm">{msg}</p>
           <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
             {is424 ? (
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/settings/github">配置 GitHub Token</Link>
-              </Button>
+              <GithubSettingsButton variant="outline" size="sm">
+                配置 GitHub Token
+              </GithubSettingsButton>
             ) : (
               <Button variant="outline" size="sm" onClick={() => void sourceQuery.refetch()}>
                 重试
               </Button>
             )}
             <Button variant="ghost" size="sm" asChild>
-              <a href={project.github_url} target="_blank" rel="noreferrer">
-                <ExternalLink className="size-4" aria-hidden />
+              <ExternalLink href={project.github_url}>
+                <ExternalLinkIcon className="size-4" aria-hidden />
                 在 GitHub 查看
-              </a>
+              </ExternalLink>
             </Button>
           </div>
         </div>
@@ -433,7 +557,7 @@ export function ProjectReadmeTab({ project, enabled }: ProjectReadmeTabProps) {
       )
     }
 
-    return <MarkdownContent content={content} />
+    return <MarkdownContent content={content} {...markdownNavProps} />
   }
 
   const renderTranslated = () => {
@@ -528,25 +652,52 @@ export function ProjectReadmeTab({ project, enabled }: ProjectReadmeTabProps) {
       )
     }
 
-    return <MarkdownContent content={project.readme_translated!.trim()} />
+    return <MarkdownContent content={project.readme_translated!.trim()} {...markdownNavProps} />
   }
 
   return (
     <>
       <ContextMenu>
         <ContextMenuTrigger asChild>
-          <div className="min-h-[12rem] outline-none">
-            {view === "source" ? renderSource() : renderTranslated()}
+          <div
+            ref={readmeLayoutRef}
+            className="group/readme-layout relative flex min-h-[12rem] items-start gap-0"
+            onMouseMove={handleReadmeLayoutMouseMove}
+            onMouseLeave={() => setTocEdgeHover(false)}
+          >
+            <div ref={readmeContentRef} className="min-w-0 flex-1 outline-none">
+              {view === "source" ? renderSource() : renderTranslated()}
+            </div>
+            {showToc ? (
+              <ReadmeTocPanel
+                headings={tocHeadings}
+                open={tocOpen}
+                onOpenChange={setTocOpen}
+                scrollContainerRef={readmeContentRef}
+                pillVisible={tocEdgeHover}
+              />
+            ) : null}
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent className="w-52">
           <ContextMenuRadioGroup value={view} onValueChange={handleViewChange}>
             <ContextMenuRadioItem value="source">显示原文</ContextMenuRadioItem>
-            <ContextMenuRadioItem value="translated">显示译文</ContextMenuRadioItem>
+            <ContextMenuRadioItem value="translated" disabled={!isDefaultReadme}>
+              显示译文
+            </ContextMenuRadioItem>
           </ContextMenuRadioGroup>
           <ContextMenuSeparator />
           <ContextMenuItem
-            disabled={!hasTranslated || translating || showProgressive}
+            disabled={!isDefaultReadme || sourceQuery.isLoading || readmeSyncState === "syncing"}
+            onSelect={() => void syncFromGithub({ manual: true })}
+          >
+            <span className="flex items-center gap-2">
+              <RefreshCw className="size-3.5" aria-hidden />
+              从 GitHub 刷新
+            </span>
+          </ContextMenuItem>
+          <ContextMenuItem
+            disabled={!isDefaultReadme || !hasTranslated || translating || showProgressive}
             onSelect={() => {
               setView("translated")
               setEditing(true)
@@ -556,7 +707,7 @@ export function ProjectReadmeTab({ project, enabled }: ProjectReadmeTabProps) {
             编辑译文
           </ContextMenuItem>
           <ContextMenuItem
-            disabled={!sourceReady || translating}
+            disabled={!isDefaultReadme || !sourceReady || translating}
             onSelect={handleStartTranslate}
           >
             {translating ? (

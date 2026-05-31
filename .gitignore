@@ -68,5 +68,24 @@ frontend/.vite/
 *.p12
 *.pfx
 
-# Tauri desktop (planned)
+# Tauri desktop (planned / build output)
 src-tauri/target/
+src-tauri/resources/dist/
+src-tauri/app-icon.png
+backend/dist/
+backend/build/
+# 本地打包 staging（上传 Release 前临时存放，勿提交）
+release-artifacts/
+# 安装包与 sidecar 可执行文件（只上传 GitHub Releases，勿 commit）
+*.msi
+*.exe
+*.dmg
+*.AppImage
+*.deb
+# Tauri updater 本地签名产物（发布时上传到 Release）
+*.sig
+
+# 误命名 env 副本（保留 .env.example）
+..env
+**/.env
+!**/.env.example

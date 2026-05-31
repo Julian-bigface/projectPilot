@@ -9,7 +9,7 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-from app.core.database import get_db
+from app.core.database import _migrate_sqlite_discovery_cache_tables, _migrate_sqlite_project_libraries, get_db
 from app.main import app
 from app.models import Base  # noqa: F401 — register models
 
@@ -20,6 +20,8 @@ async def client(tmp_path) -> AsyncGenerator[AsyncClient, None]:
     engine = create_async_engine(db_url)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(_migrate_sqlite_project_libraries)
+        await conn.run_sync(_migrate_sqlite_discovery_cache_tables)
 
     session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
@@ -30,7 +32,7 @@ async def client(tmp_path) -> AsyncGenerator[AsyncClient, None]:
     app.dependency_overrides[get_db] = override_get_db
 
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(transport=transport, base_url="http://test/api") as ac:
         yield ac
 
     app.dependency_overrides.clear()

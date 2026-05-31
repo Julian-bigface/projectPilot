@@ -3,8 +3,9 @@ import { ChevronDown } from "lucide-react"
 import { useMemo, useState } from "react"
 
 import { Button } from "@/components/ui/button"
+import { usePlApi } from "@/hooks/use-pl-api"
 import { getLibraryScopeDisplayLabel } from "@/lib/library-scope-label"
-import { projectsInFolderTreeOnly, totalProjectsInLibraryTree } from "@/lib/library-tree"
+import { projectsAtLibraryRoot, totalProjectsInLibraryTree } from "@/lib/library-tree"
 import { cn } from "@/lib/utils"
 import type { LibraryTreeResponse } from "@/types/library"
 import type { LibraryScope } from "@/types/library-scope"
@@ -39,11 +40,12 @@ type LibraryScopeSummaryPanelProps = {
 
 export function LibraryScopeSummaryPanel({ scope }: LibraryScopeSummaryPanelProps) {
   const [basicOpen, setBasicOpen] = useState(true)
+  const plApi = usePlApi()
 
   const treeQuery = useQuery({
-    queryKey: ["library", "tree"],
+    queryKey: ["library", plApi.libraryId, "tree"],
     queryFn: async (): Promise<LibraryTreeResponse> => {
-      const res = await fetch("/api/library/tree")
+      const res = await fetch(plApi.path("/library/tree"))
       if (!res.ok) {
         throw new Error(await parseErrorMessage(res))
       }
@@ -53,9 +55,9 @@ export function LibraryScopeSummaryPanel({ scope }: LibraryScopeSummaryPanelProp
   })
 
   const trashCountQuery = useQuery({
-    queryKey: ["projects", "trash-count"],
+    queryKey: ["projects", plApi.libraryId, "trash-count"],
     queryFn: async (): Promise<number> => {
-      const res = await fetch("/api/projects?deleted_only=true&_start=0&_end=1")
+      const res = await fetch(`${plApi.path("/projects")}?deleted_only=true&_start=0&_end=1`)
       if (!res.ok) {
         throw new Error(await parseErrorMessage(res))
       }
@@ -66,9 +68,9 @@ export function LibraryScopeSummaryPanel({ scope }: LibraryScopeSummaryPanelProp
   })
 
   const noTagsProjectsQuery = useQuery({
-    queryKey: ["projects", "missing-tags"],
+    queryKey: ["projects", plApi.libraryId, "missing-tags"],
     queryFn: async (): Promise<Project[]> => {
-      const res = await fetch("/api/projects?missing_tags=true&_start=0&_end=500")
+      const res = await fetch(`${plApi.path("/projects")}?missing_tags=true&_start=0&_end=500`)
       if (!res.ok) {
         throw new Error(await parseErrorMessage(res))
       }
@@ -91,7 +93,9 @@ export function LibraryScopeSummaryPanel({ scope }: LibraryScopeSummaryPanelProp
       case "all":
         return tree ? totalProjectsInLibraryTree(tree.folders, tree.orphan_projects.length) : null
       case "folders_all":
-        return tree ? projectsInFolderTreeOnly(tree.folders).length : null
+        return tree
+          ? projectsAtLibraryRoot(tree.folders, tree.orphan_projects, true).length
+          : null
       default:
         return null
     }
@@ -147,7 +151,7 @@ export function LibraryScopeSummaryPanel({ scope }: LibraryScopeSummaryPanelProp
             </div>
             {scope.kind === "folders_all" ? (
               <p className="text-muted-foreground border-border border-t pt-2 text-xs leading-snug">
-                数量与主区「文件夹」视图在默认勾选「显示子文件夹内项目」时一致（树内全部项目，不含未归类）。
+                数量与主区「文件夹」视图在默认勾选「显示子文件夹内项目」时一致（含库根未归类 + 树内全部项目）。
               </p>
             ) : null}
             {scope.kind === "trash" ? (

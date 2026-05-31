@@ -1,6 +1,7 @@
-import { GitFork, Plus, Star } from "lucide-react"
+import { BookOpen, GitFork, Plus, Star } from "lucide-react"
 import { useMemo, useState } from "react"
 
+import { ExternalLink } from "@/components/common/external-link"
 import { formatLocalDateTime, StateBadge } from "@/components/project/detail/project-detail-shared"
 import { ProjectDomainTagsDialog } from "@/components/project/project-domain-tags-dialog"
 import { ProjectGithubMark } from "@/components/project/project-github-mark"
@@ -9,6 +10,7 @@ import { ProjectRepoAvatar } from "@/components/project/project-repo-avatar"
 import { Button } from "@/components/ui/button"
 import { formatGithubPushedRelative } from "@/lib/github-relative-time"
 import { parseGithubOwner, projectSubtitle } from "@/lib/project-display"
+import { zreadProjectUrl } from "@/lib/project-wiki-links"
 import { domainTagPillClass } from "@/lib/topic-pill-palette"
 import { cn } from "@/lib/utils"
 import type { Project } from "@/types/project"
@@ -36,11 +38,13 @@ export function ProjectDetailHeader({
   const subtitleFallback = projectSubtitle(p)
   const descPlaceholder =
     subtitleFallback !== p.full_name.trim() ? subtitleFallback : "暂无简介。双击编辑"
+  const zreadUrl = zreadProjectUrl(p.full_name)
 
   return (
     <>
       <ProjectDomainTagsDialog
         projectId={p.id}
+        projectLibraryId={p.project_library_id}
         open={tagDialogOpen}
         onOpenChange={setTagDialogOpen}
         initialTagIds={initialTagIds}
@@ -61,18 +65,30 @@ export function ProjectDetailHeader({
               <h1 className="min-w-0 text-2xl font-semibold tracking-tight break-words sm:text-3xl">
                 {p.name}
               </h1>
+              <Button
+                variant="outline"
+                size="icon"
+                className="size-8 shrink-0 shadow-none"
+                asChild
+              >
+                <ExternalLink
+                  href={zreadUrl}
+                  title="在 Zread 中查看 AI Wiki"
+                  aria-label="在 Zread 中查看 AI Wiki"
+                >
+                  <BookOpen className="size-4" aria-hidden />
+                </ExternalLink>
+              </Button>
               <StateBadge state={p.state} />
             </div>
             <div className="text-muted-foreground mt-2 flex min-w-0 items-center gap-1.5 text-sm">
               <ProjectGithubMark className="size-4 shrink-0 opacity-80" aria-hidden />
-              <a
+              <ExternalLink
                 href={p.github_url}
-                target="_blank"
-                rel="noreferrer"
                 className="text-primary min-w-0 truncate font-mono hover:underline"
               >
                 {p.full_name}
-              </a>
+              </ExternalLink>
             </div>
           </div>
         </div>

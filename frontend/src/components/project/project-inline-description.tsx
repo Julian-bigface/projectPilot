@@ -75,8 +75,9 @@ export function ProjectInlineDescription({
     },
     onSuccess: async (data, variables) => {
       toast.success("简介已更新")
-      await invalidateProjectRelated(queryClient, variables.id)
+      setDraftDesc(data.description ?? "")
       onSaved?.(data)
+      await invalidateProjectRelated(queryClient, variables.id, data)
     },
     onError: (err, variables) => {
       toast.error((err as Error).message || "保存失败")
@@ -90,19 +91,22 @@ export function ProjectInlineDescription({
       toast.success("简介已翻译")
       setDraftDesc(data.description ?? "")
       setDescEditing(false)
-      await invalidateProjectRelated(queryClient, projectId)
       onSaved?.(data)
+      await invalidateProjectRelated(queryClient, projectId, data)
     },
     onError: (err: Error) => {
       toast.error(err.message || "翻译失败")
     },
   })
 
+  // 仅随服务端 description / 切换项目同步；isPending 只作守卫，不列入 deps，避免翻译结束后用未刷新的 prop 盖掉译文
   useEffect(() => {
-    if (!descEditing && !descMutation.isPending && !translateMutation.isPending) {
-      setDraftDesc(description ?? "")
+    if (descEditing || descMutation.isPending || translateMutation.isPending) {
+      return
     }
-  }, [descEditing, descMutation.isPending, translateMutation.isPending, description, projectId])
+    setDraftDesc(description ?? "")
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 见上
+  }, [description, projectId])
 
   const isDetail = variant === "detail"
   const showSectionHeader = Boolean(sectionTitle) && !hideTitle

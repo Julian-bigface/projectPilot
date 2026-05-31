@@ -8,7 +8,20 @@ from pydantic import BaseModel, Field
 
 class ProjectReadmeRead(BaseModel):
     content: str
-    source: Literal["github"] = "github"
+    source: Literal["cache", "github"] = "github"
+    path: str | None = None
+    is_default: bool = True
+    cached_at: datetime | None = None
+    github_sha: str | None = None
+    content_changed: bool = False
+
+
+class ProjectReleaseAssetRead(BaseModel):
+    name: str
+    size: int | None = None
+    download_count: int = 0
+    browser_download_url: str
+    updated_at: datetime | None = None
 
 
 class ProjectReleaseRead(BaseModel):
@@ -19,10 +32,14 @@ class ProjectReleaseRead(BaseModel):
     html_url: str | None = None
     prerelease: bool = False
     draft: bool = False
+    assets: list[ProjectReleaseAssetRead] = Field(default_factory=list)
 
 
 class ProjectReleasesRead(BaseModel):
     items: list[ProjectReleaseRead] = Field(default_factory=list)
+    source: Literal["cache", "github"] = "github"
+    cached_at: datetime | None = None
+    content_changed: bool = False
 
 
 class GithubRepoPreviewRead(BaseModel):

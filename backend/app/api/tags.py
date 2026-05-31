@@ -5,7 +5,9 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_project_library
 from app.core.database import get_db
+from app.models.project_library import ProjectLibrary
 from app.models.tag import FolderTag, ProjectTag, Tag, TagCategory
 from app.schemas.tag import TagCreate, TagRead, TagUpdate
 from app.services.tag_normalize import normalize_tag_name
@@ -32,6 +34,7 @@ async def _tag_usage_count(db: AsyncSession, tag_id: int) -> int:
 @router.get("", response_model=list[TagRead])
 async def list_tags(
     db: AsyncSession = Depends(get_db),
+    library: ProjectLibrary = Depends(get_project_library),
     q: str | None = Query(None, description="按名称包含过滤"),
     category_id: int | None = Query(None, description="筛选所属分类 id"),
     uncategorized: bool = Query(False, description="仅未分类（忽略 category_id）"),
@@ -56,6 +59,7 @@ async def list_tags(
         .outerjoin(TagCategory, Tag.category_id == TagCategory.id)
         .outerjoin(project_usage_sq, Tag.id == project_usage_sq.c.tid)
         .outerjoin(folder_usage_sq, Tag.id == folder_usage_sq.c.tid)
+        .where(Tag.project_library_id == library.id)
         .order_by(Tag.name.asc())
     )
     if q:
@@ -79,17 +83,21 @@ async def list_tags(
 
 
 @router.post("", response_model=TagRead, status_code=status.HTTP_201_CREATED)
-async def create_tag(body: TagCreate, db: AsyncSession = Depends(get_db)) -> TagRead:
+async def create_tag(
+    body: TagCreate,
+    db: AsyncSession = Depends(get_db),
+    library: ProjectLibrary = Depends(get_project_library),
+) -> TagRead:
     name = normalize_tag_name(body.name)
     if not name:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="标签名不能为空")
 
     if body.category_id is not None:
         cat = await db.get(TagCategory, body.category_id)
-        if cat is None:
+        if cat is None or cat.project_library_id != library.id:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="category_id 不存在")
 
-    tag = Tag(name=name, category_id=body.category_id)
+    tag = Tag(name=name, category_id=body.category_id, project_library_id=library.id)
     db.add(tag)
     try:
         await db.commit()
@@ -114,9 +122,14 @@ async def create_tag(body: TagCreate, db: AsyncSession = Depends(get_db)) -> Tag
 
 
 @router.patch("/{tag_id}", response_model=TagRead)
-async def patch_tag(tag_id: int, body: TagUpdate, db: AsyncSession = Depends(get_db)) -> TagRead:
+async def patch_tag(
+    tag_id: int,
+    body: TagUpdate,
+    db: AsyncSession = Depends(get_db),
+    library: ProjectLibrary = Depends(get_project_library),
+) -> TagRead:
     tag = await db.get(Tag, tag_id)
-    if tag is None:
+    if tag is None or tag.project_library_id != library.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="标签不存在")
 
     payload = body.model_dump(exclude_unset=True)
@@ -133,7 +146,7 @@ async def patch_tag(tag_id: int, body: TagUpdate, db: AsyncSession = Depends(get
         cid = payload["category_id"]
         if cid is not None:
             cat = await db.get(TagCategory, cid)
-            if cat is None:
+            if cat is None or cat.project_library_id != library.id:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="category_id 不存在")
         tag.category_id = cid
 
@@ -164,9 +177,13 @@ async def patch_tag(tag_id: int, body: TagUpdate, db: AsyncSession = Depends(get
 
 
 @router.delete("/{tag_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_tag(tag_id: int, db: AsyncSession = Depends(get_db)) -> None:
+async def delete_tag(
+    tag_id: int,
+    db: AsyncSession = Depends(get_db),
+    library: ProjectLibrary = Depends(get_project_library),
+) -> None:
     tag = await db.get(Tag, tag_id)
-    if tag is None:
+    if tag is None or tag.project_library_id != library.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="标签不存在")
 
     n = await _tag_usage_count(db, tag_id)

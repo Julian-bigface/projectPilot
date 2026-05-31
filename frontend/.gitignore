@@ -12,6 +12,14 @@ dist
 dist-ssr
 *.local
 
+# Env（与仓库根 .gitignore 一致）
+.env
+.env.*
+!.env.example
+
+# Tauri / 桌面构建（frontend 内 dev 时）
+../src-tauri/target/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

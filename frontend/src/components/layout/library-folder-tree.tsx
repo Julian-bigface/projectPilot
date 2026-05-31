@@ -22,6 +22,7 @@ import { useLibraryProjectPreview } from "@/context/library-project-preview"
 import { useLibrarySelection } from "@/context/library-selection"
 import { countProjectsInSubtree } from "@/lib/library-tree"
 import type { FolderTreeNode as FolderNodeModel } from "@/types/library"
+import { useFolderBundleFileDrop } from "@/hooks/use-folder-bundle-file-drop"
 import { cn } from "@/lib/utils"
 
 /** 重新导出，供 `FolderNestDropBar` 与侧栏等使用 */
@@ -40,6 +41,9 @@ type SortableFolderBranchProps = {
   onOpenAddGithubProject: (folderId: number) => void
   onOpenRename: (folderId: number, currentName: string) => void
   onOpenDelete: (folderId: number, name: string) => void
+  onOpenExport: (folderId: number, folderName: string) => void
+  onOpenImport: (targetParentFolderId: number, targetLabel: string) => void
+  onFileDropImport: (file: File, targetParentFolderId: number, targetLabel: string) => void
 }
 
 function SortableFolderBranch({
@@ -50,6 +54,9 @@ function SortableFolderBranch({
   onOpenAddGithubProject,
   onOpenRename,
   onOpenDelete,
+  onOpenExport,
+  onOpenImport,
+  onFileDropImport,
 }: SortableFolderBranchProps) {
   const navigate = useNavigate()
   const location = useLocation()
@@ -81,11 +88,18 @@ function SortableFolderBranch({
     [setNestRef]
   )
 
+  const fileDrop = useFolderBundleFileDrop((file) => {
+    onFileDropImport(file, node.id, node.name)
+  })
+
   const handleFolderNameClick = () => {
     setPreviewProject(null)
     setLibraryScope({ kind: "folder", folderId: node.id })
-    if (location.pathname !== "/library") {
-      navigate("/library")
+    if (!/^\/libraries\/\d+\/?$/.test(location.pathname)) {
+      const m = location.pathname.match(/^\/libraries\/(\d+)/)
+      if (m) {
+        navigate(`/libraries/${m[1]}`)
+      }
     }
   }
 
@@ -99,6 +113,8 @@ function SortableFolderBranch({
                 ref={mergeNestRef}
                 {...listeners}
                 {...attributes}
+                onDragOver={fileDrop.onDragOver}
+                onDrop={fileDrop.onDrop}
                 className={cn(
                   "relative flex w-full min-h-[28px] min-w-0 cursor-grab touch-none items-center gap-0 rounded-md outline-none transition-colors duration-150 active:cursor-grabbing"
                 )}
@@ -146,9 +162,12 @@ function SortableFolderBranch({
                 ) : null}
               </div>
             </ContextMenuTrigger>
-            <ContextMenuContent className="w-48">
+            <ContextMenuContent className="w-52">
               <ContextMenuItem onSelect={() => onOpenAddGithubProject(node.id)}>添加 GitHub 项目</ContextMenuItem>
               <ContextMenuItem onSelect={() => onOpenNewSubfolder(node.id)}>新建子文件夹</ContextMenuItem>
+              <ContextMenuSeparator />
+              <ContextMenuItem onSelect={() => onOpenExport(node.id, node.name)}>导出文件夹</ContextMenuItem>
+              <ContextMenuItem onSelect={() => onOpenImport(node.id, node.name)}>导入文件夹</ContextMenuItem>
               <ContextMenuItem onSelect={() => onOpenRename(node.id, node.name)}>重命名</ContextMenuItem>
               <ContextMenuSeparator />
               <ContextMenuItem
@@ -178,6 +197,9 @@ function SortableFolderBranch({
                 onOpenAddGithubProject={onOpenAddGithubProject}
                 onOpenRename={onOpenRename}
                 onOpenDelete={onOpenDelete}
+                onOpenExport={onOpenExport}
+                onOpenImport={onOpenImport}
+                onFileDropImport={onFileDropImport}
               />
             ))}
           </SortableContext>
@@ -193,6 +215,13 @@ type LibraryFolderTreeProps = {
   onOpenAddGithubProject: (folderId: number) => void
   onOpenRename: (folderId: number, currentName: string) => void
   onOpenDelete: (folderId: number, name: string) => void
+  onOpenExport: (folderId: number, folderName: string) => void
+  onOpenImport: (targetParentFolderId: number | null, targetLabel: string) => void
+  onFileDropImport: (
+    file: File,
+    targetParentFolderId: number | null,
+    targetLabel: string
+  ) => void
   /** 须包含在 Dnd 内：侧栏「文件夹」行等，其内应使用 `FolderNestDropBar` 作为 `NEST_ROOT` 投放区 */
   folderNestSlot?: ReactNode
   className?: string
@@ -202,18 +231,44 @@ type LibraryFolderTreeProps = {
 export function FolderNestDropBar({
   children,
   className,
+  onOpenImportToRoot,
+  onFileDropToRoot,
 }: {
   children: ReactNode
   className?: string
+  onOpenImportToRoot?: () => void
+  onFileDropToRoot?: (file: File) => void
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: LIBRARY_NEST_ROOT_ID })
-  return (
-    <div ref={setNodeRef} className={cn("relative", className)}>
+  const fileDrop = useFolderBundleFileDrop((file) => {
+    onFileDropToRoot?.(file)
+  })
+
+  const inner = (
+    <div
+      ref={setNodeRef}
+      className={cn("relative", className)}
+      onDragOver={onFileDropToRoot ? fileDrop.onDragOver : undefined}
+      onDrop={onFileDropToRoot ? fileDrop.onDrop : undefined}
+    >
       {children}
       {isOver ? (
         <div className="bg-primary/15 pointer-events-none absolute inset-0 z-[5]" aria-hidden />
       ) : null}
     </div>
+  )
+
+  if (!onOpenImportToRoot) {
+    return inner
+  }
+
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>{inner}</ContextMenuTrigger>
+      <ContextMenuContent className="w-52">
+        <ContextMenuItem onSelect={onOpenImportToRoot}>导入文件夹到库根</ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }
 
@@ -223,6 +278,9 @@ export function LibraryFolderTree({
   onOpenAddGithubProject,
   onOpenRename,
   onOpenDelete,
+  onOpenExport,
+  onOpenImport,
+  onFileDropImport,
   folderNestSlot,
   className,
 }: LibraryFolderTreeProps) {
@@ -236,6 +294,9 @@ export function LibraryFolderTree({
           onOpenAddGithubProject={onOpenAddGithubProject}
           onOpenRename={onOpenRename}
           onOpenDelete={onOpenDelete}
+          onOpenExport={onOpenExport}
+          onOpenImport={onOpenImport}
+          onFileDropImport={onFileDropImport}
         />
       </nav>
     </div>
@@ -248,6 +309,13 @@ type LibraryFolderTreeInnerProps = {
   onOpenAddGithubProject: (folderId: number) => void
   onOpenRename: (folderId: number, currentName: string) => void
   onOpenDelete: (folderId: number, name: string) => void
+  onOpenExport: (folderId: number, folderName: string) => void
+  onOpenImport: (targetParentFolderId: number | null, targetLabel: string) => void
+  onFileDropImport: (
+    file: File,
+    targetParentFolderId: number | null,
+    targetLabel: string
+  ) => void
 }
 
 function LibraryFolderTreeInner({
@@ -256,6 +324,9 @@ function LibraryFolderTreeInner({
   onOpenAddGithubProject,
   onOpenRename,
   onOpenDelete,
+  onOpenExport,
+  onOpenImport,
+  onFileDropImport,
 }: LibraryFolderTreeInnerProps) {
   const rootIds = roots.map((r) => folderSortId(r.id))
 
@@ -271,6 +342,9 @@ function LibraryFolderTreeInner({
           onOpenAddGithubProject={onOpenAddGithubProject}
           onOpenRename={onOpenRename}
           onOpenDelete={onOpenDelete}
+          onOpenExport={onOpenExport}
+          onOpenImport={onOpenImport}
+          onFileDropImport={onFileDropImport}
         />
       ))}
     </SortableContext>

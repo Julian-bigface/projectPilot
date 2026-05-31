@@ -42,6 +42,18 @@ export function projectsDirectInRootFoldersOnly(roots: FolderTreeNode[]): Projec
   return out
 }
 
+/** 资料库根层项目列表：未归类（库根）在前，再接树内文件夹下的项目 */
+export function projectsAtLibraryRoot(
+  roots: FolderTreeNode[],
+  orphans: Project[],
+  includeSubfolderProjects: boolean
+): Project[] {
+  const fromFolders = includeSubfolderProjects
+    ? projectsInFolderTreeOnly(roots)
+    : projectsDirectInRootFoldersOnly(roots)
+  return [...orphans, ...fromFolders]
+}
+
 /** 在树中按 id 查找文件夹节点 */
 export function findFolderNode(roots: FolderTreeNode[], id: number): FolderTreeNode | null {
   for (const n of roots) {
@@ -119,4 +131,9 @@ export function collectFolderFilterEntries(roots: FolderTreeNode[]): FolderFilte
 /** 仅下一级子文件夹（不含当前节点与更深层级） */
 export function collectDirectChildFolderEntries(node: FolderTreeNode): FolderFilterEntry[] {
   return node.children.map((ch) => ({ id: ch.id, name: ch.name, depth: 0 }))
+}
+
+/** 树形文件夹列表项左侧缩进（px），供 Picker / 菜单等复用 */
+export function folderTreeEntryPaddingLeft(depth: number): number {
+  return 8 + depth * 12
 }

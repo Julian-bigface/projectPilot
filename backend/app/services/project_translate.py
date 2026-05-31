@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.project import Project
-from app.services.project_github_content import fetch_project_readme
+from app.services.project_github_content import ensure_default_readme_content
 from app.services.settings_translation import (
     get_translation_provider_name,
     get_translation_target_lang,
@@ -64,12 +64,12 @@ async def translate_project_readme(
     provider_name = await get_translation_provider_name(db)
     target_lang = await get_translation_target_lang(db)
     provider = get_translation_provider(provider_name)
-    readme = await fetch_project_readme(db, project)
+    readme_content = await ensure_default_readme_content(db, project)
     try:
         translated = await _translate_in_thread(
             provider,
             translate_markdown,
-            readme.content,
+            readme_content,
             "auto",
             target_lang,
         )
@@ -86,8 +86,8 @@ async def list_project_readme_blocks(
     db: AsyncSession,
     project: Project,
 ) -> list[str]:
-    readme = await fetch_project_readme(db, project)
-    return list_markdown_display_blocks(readme.content)
+    readme_content = await ensure_default_readme_content(db, project)
+    return list_markdown_display_blocks(readme_content)
 
 
 async def translate_project_readme_block(

@@ -4,6 +4,7 @@ from app.models.app_settings import AppSetting
 from app.models.base import Base
 from app.models.folder import Folder
 from app.models.project import Project
+from app.models.project_library import ProjectLibrary
 from app.models.tag import FolderTag, ProjectTag, Tag, TagCategory
 
 __all__ = [
@@ -12,6 +13,7 @@ __all__ = [
     "Folder",
     "FolderTag",
     "Project",
+    "ProjectLibrary",
     "ProjectTag",
     "Tag",
     "TagCategory",

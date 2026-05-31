@@ -1,16 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useEffect, useRef } from "react"
-import { Link, useParams } from "react-router"
+import { Link, useLocation, useParams } from "react-router"
 import { toast } from "sonner"
 
 import { ProjectDetailHeader } from "@/components/project/detail/project-detail-header"
 import { ProjectDetailTabs } from "@/components/project/detail/project-detail-tabs"
+import { readLastProjectLibraryId } from "@/context/project-library"
 import { parseApiErrorMessage } from "@/lib/api-error"
 import { invalidateProjectRelated } from "@/lib/invalidate-project-queries"
 import type { Project } from "@/types/project"
 
 export function ProjectDetailPage() {
   const queryClient = useQueryClient()
+  const location = useLocation()
   const { id } = useParams<{ id: string }>()
   const projectId = id ? Number.parseInt(id, 10) : Number.NaN
   const validId = Number.isFinite(projectId)
@@ -73,12 +75,24 @@ export function ProjectDetailPage() {
     queryClient.setQueryData(["projects", "detail", projectId], data)
   }
 
+  const fromDiscovery =
+    typeof location.state?.from === "string" && location.state.from.startsWith("/discovery")
+  const libraryBackTo =
+    readLastProjectLibraryId() != null
+      ? `/libraries/${readLastProjectLibraryId()}`
+      : "/libraries"
+  const backTo = fromDiscovery ? location.state.from : libraryBackTo
+  const backLabel = fromDiscovery ? "返回发现" : "返回资料库"
+
   if (!validId) {
     return (
       <div className="w-full py-8">
         <p className="text-destructive text-sm">无效的项目 ID。</p>
-        <Link to="/library" className="text-muted-foreground mt-4 inline-block text-sm hover:underline">
-          返回资料库
+        <Link
+          to={backTo}
+          className="text-muted-foreground mt-4 inline-block text-sm hover:underline"
+        >
+          {backLabel}
         </Link>
       </div>
     )
@@ -97,8 +111,11 @@ export function ProjectDetailPage() {
     return (
       <div className="w-full py-8">
         <p className="text-destructive text-sm">{msg}</p>
-        <Link to="/library" className="text-muted-foreground mt-4 inline-block text-sm hover:underline">
-          返回资料库
+        <Link
+          to={backTo}
+          className="text-muted-foreground mt-4 inline-block text-sm hover:underline"
+        >
+          {backLabel}
         </Link>
       </div>
     )

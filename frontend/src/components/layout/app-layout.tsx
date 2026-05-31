@@ -11,7 +11,12 @@ import { LibraryPanelChrome } from "@/components/layout/library-panel-chrome"
 import { ProjectDetailPanelChrome } from "@/components/layout/project-detail-panel-chrome"
 import { LibraryProjectsLayoutToggle } from "@/components/layout/library-projects-layout-toggle"
 import { LibrarySidebarCollapseHandle } from "@/components/layout/library-sidebar-collapse-handle"
+import { ProjectLibraryRouteShell } from "@/components/layout/project-library-route-shell"
 import { LibrarySidebar } from "@/components/layout/library-sidebar"
+import { DiscoverySidebar } from "@/components/discovery/discovery-sidebar"
+import { DiscoveryPanelChrome } from "@/components/discovery/discovery-panel-chrome"
+import { DiscoveryRepoDetailPanelChrome } from "@/components/discovery/discovery-repo-detail-panel-chrome"
+import { DiscoveryHeaderProvider } from "@/context/discovery-header"
 import { useLibraryFeatureDrawer } from "@/context/library-feature-drawer"
 import { LibraryProjectPreviewProvider, useLibraryProjectPreview } from "@/context/library-project-preview"
 import { useLibrarySelection } from "@/context/library-selection"
@@ -21,6 +26,7 @@ import { cn } from "@/lib/utils"
 
 const FEATURE_DRAWER_OPEN_KEY = "projectPilot.featureDrawerOpen"
 const LIBRARY_SIDEBAR_OPEN_KEY = "projectPilot.librarySidebarOpen"
+const DISCOVERY_SIDEBAR_OPEN_KEY = "projectPilot.discoverySidebarOpen"
 
 /** 与左侧资料库 `aside` 的 `w-72`（18rem / 288px）一致：右侧栏默认宽度 */
 const LIBRARY_RAIL_WIDTH_PX = "288px"
@@ -47,9 +53,36 @@ function readLibrarySidebarOpenFromStorage(): boolean {
   }
 }
 
+function readDiscoverySidebarOpenFromStorage(): boolean {
+  if (typeof window === "undefined") {
+    return true
+  }
+  try {
+    return window.localStorage.getItem(DISCOVERY_SIDEBAR_OPEN_KEY) !== "0"
+  } catch {
+    return true
+  }
+}
+
+function isInsideDiscoveryPath(pathname: string): boolean {
+  return pathname.startsWith("/discovery")
+}
+
+function isInsideProjectLibraryPath(pathname: string): boolean {
+  return /^\/libraries\/\d+\/?$/.test(pathname)
+}
+
 /** 仅「资料库 + 存在 GitHub 项目卡片」的主区展示右侧预览栏（排除标签管理、回收站等） */
 function useShowLibraryPreviewRail(pathname: string, libraryScopeKind: string): boolean {
-  return pathname === "/library" && libraryScopeKind !== "tag_manage" && libraryScopeKind !== "trash"
+  return (
+    isInsideProjectLibraryPath(pathname) &&
+    libraryScopeKind !== "tag_manage" &&
+    libraryScopeKind !== "trash"
+  )
+}
+
+function isDiscoveryRepoDetailPath(pathname: string): boolean {
+  return /^\/discovery\/r\/[^/]+\/[^/]+$/.test(pathname)
 }
 
 function isProjectDetailPath(pathname: string): boolean {
@@ -60,6 +93,8 @@ function AppLayoutMainShell({
   hideMainChrome,
   showPreviewRail,
   isProjectDetail,
+  isDiscovery,
+  isDiscoveryRepoDetail,
   featureDrawerOpen,
   featurePanelRef,
   setFeatureDrawerOpen,
@@ -68,6 +103,8 @@ function AppLayoutMainShell({
   hideMainChrome: boolean
   showPreviewRail: boolean
   isProjectDetail: boolean
+  isDiscovery: boolean
+  isDiscoveryRepoDetail: boolean
   featureDrawerOpen: boolean
   featurePanelRef: RefObject<PanelImperativeHandle | null>
   setFeatureDrawerOpen: Dispatch<React.SetStateAction<boolean>>
@@ -101,21 +138,23 @@ function AppLayoutMainShell({
 
   return (
     <div className="flex h-full min-h-0 flex-col overflow-hidden">
-      <header className="border-border relative flex shrink-0 items-center gap-2 border-b px-4 py-2">
+      <header className="@container/library-header border-border flex h-12 min-h-12 shrink-0 items-center gap-2 overflow-hidden border-b px-4">
         {isProjectDetail ? (
           <ProjectDetailPanelChrome />
         ) : hideMainChrome ? (
-          <div className="flex min-w-0 shrink-0 items-center gap-1">
+          <div className="flex min-w-0 max-w-[45%] shrink items-center gap-1 @min-[28rem]/library-header:max-w-[38%] @min-[36rem]/library-header:max-w-[32%] @min-[48rem]/library-header:max-w-none">
             <LibraryPanelChrome />
           </div>
+        ) : isDiscoveryRepoDetail ? (
+          <DiscoveryRepoDetailPanelChrome />
+        ) : isDiscovery ? (
+          <DiscoveryPanelChrome />
         ) : (
           <span className="text-muted-foreground text-xs">主内容区</span>
         )}
         {hideMainChrome && showPreviewRail ? (
-          <div className="pointer-events-none absolute inset-x-4 top-1/2 flex -translate-y-1/2 justify-center">
-            <div className="pointer-events-auto w-full max-w-md min-w-[10rem]">
-              <LibraryHeaderSearch />
-            </div>
+          <div className="hidden min-w-0 flex-1 basis-0 px-1 @min-[26rem]/library-header:flex @min-[26rem]/library-header:max-w-[8rem] @min-[32rem]/library-header:max-w-xs @min-[40rem]/library-header:max-w-sm @min-[48rem]/library-header:max-w-md">
+            <LibraryHeaderSearch />
           </div>
         ) : null}
         {hideMainChrome && showPreviewRail ? (
@@ -162,10 +201,15 @@ function AppLayoutMainShell({
       </header>
       <main
         className={cn(
-          "main-auto-scrollbar min-h-0 flex-1 overflow-auto p-4",
-          mainScrollbarVisible && "main-auto-scrollbar--visible"
+          "min-h-0 flex-1 p-4",
+          isDiscovery
+            ? "flex flex-col overflow-hidden"
+            : cn(
+                "main-auto-scrollbar overflow-auto",
+                mainScrollbarVisible && "main-auto-scrollbar--visible"
+              )
         )}
-        onScroll={handleMainScroll}
+        onScroll={isDiscovery ? undefined : handleMainScroll}
       >
         {children}
       </main>
@@ -179,17 +223,26 @@ function AppLayoutInner() {
   const { setPreviewProject } = useLibraryProjectPreview()
   const { setEnsureOpenImpl } = useLibraryFeatureDrawer()
 
-  const hideMainChrome = location.pathname === "/library"
+  const insideLibrary = isInsideProjectLibraryPath(location.pathname)
+  const insideDiscovery = isInsideDiscoveryPath(location.pathname)
+  const hideMainChrome = insideLibrary
+  const isDiscovery = insideDiscovery
+  const isDiscoveryRepoDetail = isDiscoveryRepoDetailPath(location.pathname)
   const isProjectDetail = isProjectDetailPath(location.pathname)
   const showPreviewRail = useShowLibraryPreviewRail(location.pathname, libraryScope.kind)
 
   const featurePanelRef = usePanelRef()
   const [featureDrawerOpen, setFeatureDrawerOpen] = useState(readFeatureDrawerOpenFromStorage)
   const [librarySidebarOpen, setLibrarySidebarOpen] = useState(readLibrarySidebarOpenFromStorage)
+  const [discoverySidebarOpen, setDiscoverySidebarOpen] = useState(readDiscoverySidebarOpenFromStorage)
   const didApplyInitialCollapse = useRef(false)
 
   const toggleLibrarySidebar = useCallback(() => {
     setLibrarySidebarOpen((prev) => !prev)
+  }, [])
+
+  const toggleDiscoverySidebar = useCallback(() => {
+    setDiscoverySidebarOpen((prev) => !prev)
   }, [])
 
   const openFeatureDrawer = useCallback(() => {
@@ -255,6 +308,38 @@ function AppLayoutInner() {
   }, [librarySidebarOpen])
 
   useEffect(() => {
+    try {
+      window.localStorage.setItem(DISCOVERY_SIDEBAR_OPEN_KEY, discoverySidebarOpen ? "1" : "0")
+    } catch {
+      /* ignore */
+    }
+  }, [discoverySidebarOpen])
+
+  useEffect(() => {
+    if (!insideDiscovery) {
+      return
+    }
+    const html = document.documentElement
+    const body = document.body
+    const root = document.getElementById("root")
+    const prevHtml = html.style.overflow
+    const prevBody = body.style.overflow
+    const prevRoot = root?.style.overflow ?? ""
+    html.style.overflow = "hidden"
+    body.style.overflow = "hidden"
+    if (root) {
+      root.style.overflow = "hidden"
+    }
+    return () => {
+      html.style.overflow = prevHtml
+      body.style.overflow = prevBody
+      if (root) {
+        root.style.overflow = prevRoot
+      }
+    }
+  }, [insideDiscovery])
+
+  useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (!e.ctrlKey || !e.altKey || e.key !== ",") {
         return
@@ -270,11 +355,15 @@ function AppLayoutInner() {
         return
       }
       e.preventDefault()
-      toggleLibrarySidebar()
+      if (insideDiscovery) {
+        toggleDiscoverySidebar()
+      } else if (insideLibrary) {
+        toggleLibrarySidebar()
+      }
     }
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
-  }, [toggleLibrarySidebar])
+  }, [toggleLibrarySidebar, toggleDiscoverySidebar, insideDiscovery, insideLibrary])
 
   const mainContent = showPreviewRail ? (
         <Group
@@ -288,6 +377,8 @@ function AppLayoutInner() {
               hideMainChrome={hideMainChrome}
               showPreviewRail={showPreviewRail}
               isProjectDetail={isProjectDetail}
+              isDiscovery={isDiscovery}
+              isDiscoveryRepoDetail={isDiscoveryRepoDetail}
               featureDrawerOpen={featureDrawerOpen}
               featurePanelRef={featurePanelRef}
               setFeatureDrawerOpen={setFeatureDrawerOpen}
@@ -326,6 +417,8 @@ function AppLayoutInner() {
             hideMainChrome={hideMainChrome}
             showPreviewRail={showPreviewRail}
             isProjectDetail={isProjectDetail}
+            isDiscovery={isDiscovery}
+            isDiscoveryRepoDetail={isDiscoveryRepoDetail}
             featureDrawerOpen={featureDrawerOpen}
             featurePanelRef={featurePanelRef}
             setFeatureDrawerOpen={setFeatureDrawerOpen}
@@ -336,31 +429,67 @@ function AppLayoutInner() {
   )
 
   return (
-    <LibraryDndProvider>
-      <div className="relative flex h-full min-h-0 shrink-0 overflow-visible">
-        <aside
-          className={cn(
-            "border-border bg-muted/15 flex flex-col overflow-hidden border-r transition-[width] duration-200 ease-out",
-            librarySidebarOpen ? "w-72" : "w-0 border-r-0"
-          )}
-        >
-          <div
-            className={cn(
-              "flex h-full w-72 min-w-72 flex-col",
-              !librarySidebarOpen && "invisible"
-            )}
-          >
-            <LibrarySidebar />
+    <>
+      {insideLibrary ? (
+        <ProjectLibraryRouteShell>
+          <LibraryDndProvider>
+            <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+              <div className="relative flex h-full min-h-0 shrink-0 overflow-visible">
+                <aside
+                  className={cn(
+                    "border-border bg-muted/15 flex flex-col overflow-hidden border-r transition-[width] duration-200 ease-out",
+                    librarySidebarOpen ? "w-72" : "w-0 border-r-0"
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "flex h-full w-72 min-w-72 flex-col",
+                      !librarySidebarOpen && "invisible"
+                    )}
+                  >
+                    <LibrarySidebar />
+                  </div>
+                </aside>
+                <LibrarySidebarCollapseHandle
+                  open={librarySidebarOpen}
+                  onOpenChange={setLibrarySidebarOpen}
+                />
+              </div>
+              {mainContent}
+            </div>
+          </LibraryDndProvider>
+        </ProjectLibraryRouteShell>
+      ) : insideDiscovery ? (
+        <DiscoveryHeaderProvider>
+          <div className="flex h-full min-h-0 min-w-0 flex-1 overflow-hidden">
+            <div className="relative flex h-full min-h-0 shrink-0 overflow-visible">
+              <aside
+                className={cn(
+                  "border-border bg-muted/15 flex flex-col overflow-hidden border-r transition-[width] duration-200 ease-out",
+                  discoverySidebarOpen ? "w-72" : "w-0 border-r-0"
+                )}
+              >
+                <div
+                  className={cn(
+                    "flex h-full w-72 min-w-72 flex-col",
+                    !discoverySidebarOpen && "invisible"
+                  )}
+                >
+                  <DiscoverySidebar />
+                </div>
+              </aside>
+              <LibrarySidebarCollapseHandle
+                open={discoverySidebarOpen}
+                onOpenChange={setDiscoverySidebarOpen}
+              />
+            </div>
+            {mainContent}
           </div>
-        </aside>
-        <LibrarySidebarCollapseHandle
-          open={librarySidebarOpen}
-          onOpenChange={setLibrarySidebarOpen}
-        />
-      </div>
-
-      {mainContent}
-    </LibraryDndProvider>
+        </DiscoveryHeaderProvider>
+      ) : (
+        mainContent
+      )}
+    </>
   )
 }
 
@@ -370,7 +499,9 @@ export function AppLayout() {
       <div className="flex min-h-0 min-w-0 flex-1">
         <FunctionRail />
         <LibraryProjectPreviewProvider>
-          <AppLayoutInner />
+          <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+            <AppLayoutInner />
+          </div>
         </LibraryProjectPreviewProvider>
       </div>
     </div>

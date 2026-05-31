@@ -88,6 +88,7 @@ class ProjectRead(ProjectBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    project_library_id: int
     folder_id: int | None = None
     folder_name: str | None = None
     tags: list[TagBrief] = Field(default_factory=list)

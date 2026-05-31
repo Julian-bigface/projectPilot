@@ -14,6 +14,11 @@ class Folder(Base):
     __tablename__ = "folders"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_library_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("project_libraries.id", ondelete="CASCADE"),
+        index=True,
+    )
     parent_id: Mapped[int | None] = mapped_column(
         Integer, ForeignKey("folders.id", ondelete="RESTRICT"), nullable=True, index=True
     )

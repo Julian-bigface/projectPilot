@@ -8,16 +8,17 @@ import { useLibraryFeatureDrawer } from "@/context/library-feature-drawer"
 import { useLibrarySelection } from "@/context/library-selection"
 import { useLibraryProjectsLayout } from "@/context/library-projects-layout"
 import { applyLibraryFilters, collectTagIdsFromProjects } from "@/lib/library-project-filters"
+import { projectUpdatedAtMs } from "@/lib/patch-project-in-library-caches"
 import {
   findFolderNode,
   flattenAllProjects,
   countProjectsInSubtree,
-  projectsDirectInRootFoldersOnly,
+  projectsAtLibraryRoot,
   projectsInFolderSubtree,
-  projectsInFolderTreeOnly,
 } from "@/lib/library-tree"
 import { ProjectGithubCard } from "@/components/project/project-github-card"
 import { useLibraryProjectPreview } from "@/context/library-project-preview"
+import { usePlApi } from "@/hooks/use-pl-api"
 import { TagManagementPage } from "@/pages/library/tag-management"
 import type { LibraryTreeResponse } from "@/types/library"
 import type { Project } from "@/types/project"
@@ -46,11 +47,12 @@ export function LibraryHomePage() {
   const { previewProject, setPreviewProject } = useLibraryProjectPreview()
   const { ensureFeatureDrawerOpen } = useLibraryFeatureDrawer()
   const { setSelectedTagIds, ...browseFilters } = useLibraryBrowseFilters()
+  const plApi = usePlApi()
 
   const treeQuery = useQuery({
-    queryKey: ["library", "tree"],
+    queryKey: ["library", plApi.libraryId, "tree"],
     queryFn: async (): Promise<LibraryTreeResponse> => {
-      const res = await fetch("/api/library/tree")
+      const res = await fetch(plApi.path("/library/tree"))
       if (!res.ok) {
         throw new Error(await parseErrorMessage(res))
       }
@@ -60,9 +62,9 @@ export function LibraryHomePage() {
   })
 
   const trashProjectsQuery = useQuery({
-    queryKey: ["projects", "trash"],
+    queryKey: ["projects", plApi.libraryId, "trash"],
     queryFn: async (): Promise<Project[]> => {
-      const res = await fetch("/api/projects?deleted_only=true&_start=0&_end=500")
+      const res = await fetch(`${plApi.path("/projects")}?deleted_only=true&_start=0&_end=500`)
       if (!res.ok) {
         throw new Error(await parseErrorMessage(res))
       }
@@ -72,9 +74,9 @@ export function LibraryHomePage() {
   })
 
   const noTagsProjectsQuery = useQuery({
-    queryKey: ["projects", "missing-tags"],
+    queryKey: ["projects", plApi.libraryId, "missing-tags"],
     queryFn: async (): Promise<Project[]> => {
-      const res = await fetch("/api/projects?missing_tags=true&_start=0&_end=500")
+      const res = await fetch(`${plApi.path("/projects")}?missing_tags=true&_start=0&_end=500`)
       if (!res.ok) {
         throw new Error(await parseErrorMessage(res))
       }
@@ -107,9 +109,11 @@ export function LibraryHomePage() {
       return flattenAllProjects(tree.folders, tree.orphan_projects)
     }
     if (libraryScope.kind === "folders_all" && tree) {
-      return includeSubfolderProjects
-        ? projectsInFolderTreeOnly(tree.folders)
-        : projectsDirectInRootFoldersOnly(tree.folders)
+      return projectsAtLibraryRoot(
+        tree.folders,
+        tree.orphan_projects,
+        includeSubfolderProjects
+      )
     }
     if (libraryScope.kind === "uncategorized") {
       return tree?.orphan_projects ?? []
@@ -209,7 +213,11 @@ export function LibraryHomePage() {
       setPreviewProject(null)
       return
     }
-    if (next !== previewProject) {
+    if (next === previewProject) {
+      return
+    }
+    // 列表缓存刷新后同步预览；若列表项比当前预览更旧（例如刚翻译完尚未 refetch），不要用旧数据覆盖
+    if (projectUpdatedAtMs(next) >= projectUpdatedAtMs(previewProject)) {
       setPreviewProject(next)
     }
   }, [displayFiles, previewProject, setPreviewProject])

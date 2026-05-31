@@ -4,9 +4,11 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_project_library
 from app.core.database import get_db
 from app.models.folder import Folder
 from app.models.project import Project
+from app.models.project_library import ProjectLibrary
 from app.schemas.library import FolderTreeNode, LibraryTreeResponse
 from app.schemas.project import TagBrief
 from app.services.project_read import load_tags_map_for_projects, project_read_with_folder_name
@@ -40,10 +42,26 @@ def _build_folder_tree(
 
 
 @router.get("/tree", response_model=LibraryTreeResponse)
-async def get_library_tree(db: AsyncSession = Depends(get_db)) -> LibraryTreeResponse:
-    folders = (await db.execute(select(Folder))).scalars().all()
+async def get_library_tree(
+    db: AsyncSession = Depends(get_db),
+    library: ProjectLibrary = Depends(get_project_library),
+) -> LibraryTreeResponse:
+    folders = (
+        (await db.execute(select(Folder).where(Folder.project_library_id == library.id)))
+        .scalars()
+        .all()
+    )
     projects = (
-        (await db.execute(select(Project).where(Project.deleted_at.is_(None)))).scalars().all()
+        (
+            await db.execute(
+                select(Project).where(
+                    Project.deleted_at.is_(None),
+                    Project.project_library_id == library.id,
+                )
+            )
+        )
+        .scalars()
+        .all()
     )
     orphans = [p for p in projects if p.folder_id is None]
     orphans.sort(key=lambda p: p.updated_at, reverse=True)

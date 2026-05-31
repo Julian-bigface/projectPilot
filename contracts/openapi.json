@@ -5,13 +5,13 @@
     "version": "0.1.0"
   },
   "paths": {
-    "/projects": {
+    "/api/projects": {
       "get": {
         "tags": [
           "projects"
         ],
         "summary": "List Projects",
-        "operationId": "list_projects_projects_get",
+        "operationId": "list_projects_api_projects_get",
         "parameters": [
           {
             "name": "state",
@@ -93,7 +93,7 @@
                   "items": {
                     "$ref": "#/components/schemas/ProjectRead"
                   },
-                  "title": "Response List Projects Projects Get"
+                  "title": "Response List Projects Api Projects Get"
                 }
               }
             }
@@ -115,7 +115,7 @@
           "projects"
         ],
         "summary": "Create Project",
-        "operationId": "create_project_projects_post",
+        "operationId": "create_project_api_projects_post",
         "requestBody": {
           "required": true,
           "content": {
@@ -150,13 +150,13 @@
         }
       }
     },
-    "/projects/preview-github": {
+    "/api/projects/preview-github": {
       "get": {
         "tags": [
           "projects"
         ],
         "summary": "Preview Github Repo",
-        "operationId": "preview_github_repo_projects_preview_github_get",
+        "operationId": "preview_github_repo_api_projects_preview_github_get",
         "parameters": [
           {
             "name": "github_url",
@@ -196,13 +196,13 @@
         }
       }
     },
-    "/projects/{project_id}/refresh-github": {
+    "/api/projects/{project_id}/refresh-github": {
       "post": {
         "tags": [
           "projects"
         ],
         "summary": "Refresh Project Github",
-        "operationId": "refresh_project_github_projects__project_id__refresh_github_post",
+        "operationId": "refresh_project_github_api_projects__project_id__refresh_github_post",
         "parameters": [
           {
             "name": "project_id",
@@ -256,13 +256,13 @@
         }
       }
     },
-    "/projects/{project_id}/restore": {
+    "/api/projects/{project_id}/restore": {
       "post": {
         "tags": [
           "projects"
         ],
         "summary": "Restore Project",
-        "operationId": "restore_project_projects__project_id__restore_post",
+        "operationId": "restore_project_api_projects__project_id__restore_post",
         "parameters": [
           {
             "name": "project_id",
@@ -298,13 +298,13 @@
         }
       }
     },
-    "/projects/{project_id}/permanent": {
+    "/api/projects/{project_id}/permanent": {
       "delete": {
         "tags": [
           "projects"
         ],
         "summary": "Delete Project Permanent",
-        "operationId": "delete_project_permanent_projects__project_id__permanent_delete",
+        "operationId": "delete_project_permanent_api_projects__project_id__permanent_delete",
         "parameters": [
           {
             "name": "project_id",
@@ -333,13 +333,13 @@
         }
       }
     },
-    "/projects/{project_id}": {
+    "/api/projects/{project_id}": {
       "get": {
         "tags": [
           "projects"
         ],
         "summary": "Get Project",
-        "operationId": "get_project_projects__project_id__get",
+        "operationId": "get_project_api_projects__project_id__get",
         "parameters": [
           {
             "name": "project_id",
@@ -379,7 +379,7 @@
           "projects"
         ],
         "summary": "Patch Project",
-        "operationId": "patch_project_projects__project_id__patch",
+        "operationId": "patch_project_api_projects__project_id__patch",
         "parameters": [
           {
             "name": "project_id",
@@ -429,7 +429,7 @@
           "projects"
         ],
         "summary": "Delete Project",
-        "operationId": "delete_project_projects__project_id__delete",
+        "operationId": "delete_project_api_projects__project_id__delete",
         "parameters": [
           {
             "name": "project_id",
@@ -465,13 +465,13 @@
         }
       }
     },
-    "/projects/{project_id}/readme": {
+    "/api/projects/{project_id}/readme": {
       "get": {
         "tags": [
           "projects"
         ],
         "summary": "Get Project Readme",
-        "operationId": "get_project_readme_projects__project_id__readme_get",
+        "operationId": "get_project_readme_api_projects__project_id__readme_get",
         "parameters": [
           {
             "name": "project_id",
@@ -480,6 +480,32 @@
             "schema": {
               "type": "integer",
               "title": "Project Id"
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Path"
+            }
+          },
+          {
+            "name": "fresh",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Fresh"
             }
           }
         ],
@@ -507,13 +533,13 @@
         }
       }
     },
-    "/projects/{project_id}/releases": {
+    "/api/projects/{project_id}/releases": {
       "get": {
         "tags": [
           "projects"
         ],
         "summary": "Get Project Releases",
-        "operationId": "get_project_releases_projects__project_id__releases_get",
+        "operationId": "get_project_releases_api_projects__project_id__releases_get",
         "parameters": [
           {
             "name": "project_id",
@@ -522,6 +548,16 @@
             "schema": {
               "type": "integer",
               "title": "Project Id"
+            }
+          },
+          {
+            "name": "fresh",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Fresh"
             }
           }
         ],
@@ -549,13 +585,13 @@
         }
       }
     },
-    "/projects/{project_id}/readme/blocks": {
+    "/api/projects/{project_id}/readme/blocks": {
       "get": {
         "tags": [
           "projects"
         ],
         "summary": "Get Project Readme Blocks",
-        "operationId": "get_project_readme_blocks_projects__project_id__readme_blocks_get",
+        "operationId": "get_project_readme_blocks_api_projects__project_id__readme_blocks_get",
         "parameters": [
           {
             "name": "project_id",
@@ -591,13 +627,13 @@
         }
       }
     },
-    "/projects/{project_id}/translate/readme-block": {
+    "/api/projects/{project_id}/translate/readme-block": {
       "post": {
         "tags": [
           "projects"
         ],
         "summary": "Translate Project Readme Block Endpoint",
-        "operationId": "translate_project_readme_block_endpoint_projects__project_id__translate_readme_block_post",
+        "operationId": "translate_project_readme_block_endpoint_api_projects__project_id__translate_readme_block_post",
         "parameters": [
           {
             "name": "project_id",
@@ -643,13 +679,13 @@
         }
       }
     },
-    "/projects/{project_id}/translate": {
+    "/api/projects/{project_id}/translate": {
       "post": {
         "tags": [
           "projects"
         ],
         "summary": "Translate Project",
-        "operationId": "translate_project_projects__project_id__translate_post",
+        "operationId": "translate_project_api_projects__project_id__translate_post",
         "parameters": [
           {
             "name": "project_id",
@@ -695,34 +731,72 @@
         }
       }
     },
-    "/folders/reorder": {
-      "post": {
+    "/api/discovery/trending": {
+      "get": {
         "tags": [
-          "folders"
+          "discovery"
         ],
-        "summary": "Reorder Folders",
-        "operationId": "reorder_folders_folders_reorder_post",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/FolderReorder"
-              }
+        "summary": "Discovery Trending",
+        "operationId": "discovery_trending_api_discovery_trending_get",
+        "parameters": [
+          {
+            "name": "range",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "daily",
+                "weekly",
+                "monthly"
+              ],
+              "type": "string",
+              "default": "weekly",
+              "title": "Range"
             }
           },
-          "required": true
-        },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Per Page"
+            }
+          },
+          {
+            "name": "fresh",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "忽略 RSS 缓存，重新拉取 GitHubTrendingRSS",
+              "default": false,
+              "title": "Fresh"
+            },
+            "description": "忽略 RSS 缓存，重新拉取 GitHubTrendingRSS"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/FolderRead"
-                  },
-                  "type": "array",
-                  "title": "Response Reorder Folders Folders Reorder Post"
+                  "$ref": "#/components/schemas/DiscoveryPageRead"
                 }
               }
             }
@@ -740,24 +814,543 @@
         }
       }
     },
-    "/folders": {
-      "get": {
+    "/api/discovery/repos/enrich": {
+      "post": {
         "tags": [
-          "folders"
+          "discovery"
         ],
-        "summary": "List Folders Flat",
-        "operationId": "list_folders_flat_folders_get",
+        "summary": "Discovery Repos Enrich",
+        "description": "并行补全趋势 RSS 条目的 language / topics 等（走 GitHub API + SQLite 仓库缓存）。",
+        "operationId": "discovery_repos_enrich_api_discovery_repos_enrich_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DiscoveryEnrichRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
+                  "$ref": "#/components/schemas/DiscoveryEnrichRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/discovery/repos/{owner}/{repo}/readme": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "Discovery Repo Readme",
+        "description": "发现预览：按 owner/repo 拉 README，不写入 projects 表。",
+        "operationId": "discovery_repo_readme_api_discovery_repos__owner___repo__readme_get",
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Owner"
+            }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Repo"
+            }
+          },
+          {
+            "name": "path",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "仓库内 Markdown 相对路径",
+              "title": "Path"
+            },
+            "description": "仓库内 Markdown 相对路径"
+          },
+          {
+            "name": "fresh",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "预览态始终从 GitHub 拉取；保留参数与项目详情 API 一致",
+              "default": false,
+              "title": "Fresh"
+            },
+            "description": "预览态始终从 GitHub 拉取；保留参数与项目详情 API 一致"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectReadmeRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/discovery/repos/{owner}/{repo}/releases": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "Discovery Repo Releases",
+        "description": "发现预览：按 owner/repo 拉 Releases，不写入 projects 表。",
+        "operationId": "discovery_repo_releases_api_discovery_repos__owner___repo__releases_get",
+        "parameters": [
+          {
+            "name": "owner",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Owner"
+            }
+          },
+          {
+            "name": "repo",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Repo"
+            }
+          },
+          {
+            "name": "fresh",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "预览态始终从 GitHub 拉取",
+              "default": false,
+              "title": "Fresh"
+            },
+            "description": "预览态始终从 GitHub 拉取"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectReleasesRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/discovery/hot-release": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "Discovery Hot Release",
+        "operationId": "discovery_hot_release_api_discovery_hot_release_get",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Per Page"
+            }
+          },
+          {
+            "name": "fresh",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Fresh"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoveryPageRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/discovery/most-popular": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "Discovery Most Popular",
+        "operationId": "discovery_most_popular_api_discovery_most_popular_get",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Per Page"
+            }
+          },
+          {
+            "name": "fresh",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Fresh"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoveryPageRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/discovery/topic": {
+      "get": {
+        "tags": [
+          "discovery"
+        ],
+        "summary": "Discovery Topic",
+        "operationId": "discovery_topic_api_discovery_topic_get",
+        "parameters": [
+          {
+            "name": "topic",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128,
+              "title": "Topic"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 20,
+              "title": "Per Page"
+            }
+          },
+          {
+            "name": "fresh",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Fresh"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiscoveryPageRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}/library/tree": {
+      "get": {
+        "tags": [
+          "project-libraries",
+          "library"
+        ],
+        "summary": "Get Library Tree",
+        "operationId": "get_library_tree_api_project_libraries__library_id__library_tree_get",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryTreeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}/folders/reorder": {
+      "post": {
+        "tags": [
+          "project-libraries",
+          "folders"
+        ],
+        "summary": "Reorder Folders",
+        "operationId": "reorder_folders_api_project_libraries__library_id__folders_reorder_post",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FolderReorder"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/FolderRead"
                   },
+                  "title": "Response Reorder Folders Api Project Libraries  Library Id  Folders Reorder Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}/folders": {
+      "get": {
+        "tags": [
+          "project-libraries",
+          "folders"
+        ],
+        "summary": "List Folders Flat",
+        "operationId": "list_folders_flat_api_project_libraries__library_id__folders_get",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
                   "type": "array",
-                  "title": "Response List Folders Flat Folders Get"
+                  "items": {
+                    "$ref": "#/components/schemas/FolderRead"
+                  },
+                  "title": "Response List Folders Flat Api Project Libraries  Library Id  Folders Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -766,19 +1359,31 @@
       },
       "post": {
         "tags": [
+          "project-libraries",
           "folders"
         ],
         "summary": "Create Folder",
-        "operationId": "create_folder_folders_post",
+        "operationId": "create_folder_api_project_libraries__library_id__folders_post",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/FolderCreate"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -804,13 +1409,14 @@
         }
       }
     },
-    "/folders/{folder_id}": {
+    "/api/project-libraries/{library_id}/folders/{folder_id}": {
       "patch": {
         "tags": [
+          "project-libraries",
           "folders"
         ],
         "summary": "Patch Folder",
-        "operationId": "patch_folder_folders__folder_id__patch",
+        "operationId": "patch_folder_api_project_libraries__library_id__folders__folder_id__patch",
         "parameters": [
           {
             "name": "folder_id",
@@ -819,6 +1425,15 @@
             "schema": {
               "type": "integer",
               "title": "Folder Id"
+            }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
             }
           }
         ],
@@ -857,10 +1472,11 @@
       },
       "delete": {
         "tags": [
+          "project-libraries",
           "folders"
         ],
         "summary": "Delete Folder",
-        "operationId": "delete_folder_folders__folder_id__delete",
+        "operationId": "delete_folder_api_project_libraries__library_id__folders__folder_id__delete",
         "parameters": [
           {
             "name": "folder_id",
@@ -869,6 +1485,15 @@
             "schema": {
               "type": "integer",
               "title": "Folder Id"
+            }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
             }
           }
         ],
@@ -889,20 +1514,49 @@
         }
       }
     },
-    "/library/tree": {
+    "/api/project-libraries/{library_id}/folders/{folder_id}/export": {
       "get": {
         "tags": [
-          "library"
+          "project-libraries",
+          "folder-bundle"
         ],
-        "summary": "Get Library Tree",
-        "operationId": "get_library_tree_library_tree_get",
+        "summary": "Export Folder Bundle",
+        "operationId": "export_folder_bundle_api_project_libraries__library_id__folders__folder_id__export_get",
+        "parameters": [
+          {
+            "name": "folder_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Folder Id"
+            }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/LibraryTreeResponse"
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -910,41 +1564,34 @@
         }
       }
     },
-    "/settings/github": {
-      "get": {
+    "/api/project-libraries/{library_id}/import/folder-bundle": {
+      "post": {
         "tags": [
-          "settings"
+          "project-libraries",
+          "folder-bundle"
         ],
-        "summary": "Get Github Settings",
-        "operationId": "get_github_settings_settings_github_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GithubSettingsRead"
-                }
-              }
+        "summary": "Post Import Folder Bundle",
+        "operationId": "post_import_folder_bundle_api_project_libraries__library_id__import_folder_bundle_post",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
             }
           }
-        }
-      },
-      "put": {
-        "tags": [
-          "settings"
         ],
-        "summary": "Put Github Settings",
-        "operationId": "put_github_settings_settings_github_put",
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/GithubSettingsUpdate"
+                "$ref": "#/components/schemas/FolderBundleImportRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "200": {
@@ -952,7 +1599,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GithubSettingsRead"
+                  "$ref": "#/components/schemas/FolderBundleImportResult"
                 }
               }
             }
@@ -970,116 +1617,24 @@
         }
       }
     },
-    "/settings/github/test": {
-      "post": {
-        "tags": [
-          "settings"
-        ],
-        "summary": "Post Github Test",
-        "operationId": "post_github_test_settings_github_test_post",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/GithubTestResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/settings/translation": {
+    "/api/project-libraries/{library_id}/tags": {
       "get": {
         "tags": [
-          "settings"
-        ],
-        "summary": "Get Translation Settings",
-        "operationId": "get_translation_settings_settings_translation_get",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TranslationSettingsRead"
-                }
-              }
-            }
-          }
-        }
-      },
-      "put": {
-        "tags": [
-          "settings"
-        ],
-        "summary": "Put Translation Settings",
-        "operationId": "put_translation_settings_settings_translation_put",
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TranslationSettingsUpdate"
-              }
-            }
-          },
-          "required": true
-        },
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TranslationSettingsRead"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/settings/translation/test": {
-      "post": {
-        "tags": [
-          "settings"
-        ],
-        "summary": "Post Translation Test",
-        "operationId": "post_translation_test_settings_translation_test_post",
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TranslationTestResponse"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/tags": {
-      "get": {
-        "tags": [
+          "project-libraries",
           "tags"
         ],
         "summary": "List Tags",
-        "operationId": "list_tags_tags_get",
+        "operationId": "list_tags_api_project_libraries__library_id__tags_get",
         "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          },
           {
             "name": "q",
             "in": "query",
@@ -1139,7 +1694,7 @@
                   "items": {
                     "$ref": "#/components/schemas/TagRead"
                   },
-                  "title": "Response List Tags Tags Get"
+                  "title": "Response List Tags Api Project Libraries  Library Id  Tags Get"
                 }
               }
             }
@@ -1158,10 +1713,22 @@
       },
       "post": {
         "tags": [
+          "project-libraries",
           "tags"
         ],
         "summary": "Create Tag",
-        "operationId": "create_tag_tags_post",
+        "operationId": "create_tag_api_project_libraries__library_id__tags_post",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -1196,13 +1763,14 @@
         }
       }
     },
-    "/tags/{tag_id}": {
+    "/api/project-libraries/{library_id}/tags/{tag_id}": {
       "patch": {
         "tags": [
+          "project-libraries",
           "tags"
         ],
         "summary": "Patch Tag",
-        "operationId": "patch_tag_tags__tag_id__patch",
+        "operationId": "patch_tag_api_project_libraries__library_id__tags__tag_id__patch",
         "parameters": [
           {
             "name": "tag_id",
@@ -1211,6 +1779,15 @@
             "schema": {
               "type": "integer",
               "title": "Tag Id"
+            }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
             }
           }
         ],
@@ -1249,10 +1826,11 @@
       },
       "delete": {
         "tags": [
+          "project-libraries",
           "tags"
         ],
         "summary": "Delete Tag",
-        "operationId": "delete_tag_tags__tag_id__delete",
+        "operationId": "delete_tag_api_project_libraries__library_id__tags__tag_id__delete",
         "parameters": [
           {
             "name": "tag_id",
@@ -1261,6 +1839,15 @@
             "schema": {
               "type": "integer",
               "title": "Tag Id"
+            }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
             }
           }
         ],
@@ -1281,24 +1868,46 @@
         }
       }
     },
-    "/tag-categories": {
+    "/api/project-libraries/{library_id}/tag-categories": {
       "get": {
         "tags": [
+          "project-libraries",
           "tag-categories"
         ],
         "summary": "List Tag Categories",
-        "operationId": "list_tag_categories_tag_categories_get",
+        "operationId": "list_tag_categories_api_project_libraries__library_id__tag_categories_get",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
+                  "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/TagCategoryRead"
                   },
-                  "type": "array",
-                  "title": "Response List Tag Categories Tag Categories Get"
+                  "title": "Response List Tag Categories Api Project Libraries  Library Id  Tag Categories Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -1307,19 +1916,31 @@
       },
       "post": {
         "tags": [
+          "project-libraries",
           "tag-categories"
         ],
         "summary": "Create Tag Category",
-        "operationId": "create_tag_category_tag_categories_post",
+        "operationId": "create_tag_category_api_project_libraries__library_id__tag_categories_post",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/TagCategoryCreate"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -1345,13 +1966,14 @@
         }
       }
     },
-    "/tag-categories/{category_id}": {
+    "/api/project-libraries/{library_id}/tag-categories/{category_id}": {
       "patch": {
         "tags": [
+          "project-libraries",
           "tag-categories"
         ],
         "summary": "Update Tag Category",
-        "operationId": "update_tag_category_tag_categories__category_id__patch",
+        "operationId": "update_tag_category_api_project_libraries__library_id__tag_categories__category_id__patch",
         "parameters": [
           {
             "name": "category_id",
@@ -1360,6 +1982,15 @@
             "schema": {
               "type": "integer",
               "title": "Category Id"
+            }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
             }
           }
         ],
@@ -1398,10 +2029,11 @@
       },
       "delete": {
         "tags": [
+          "project-libraries",
           "tag-categories"
         ],
         "summary": "Delete Tag Category",
-        "operationId": "delete_tag_category_tag_categories__category_id__delete",
+        "operationId": "delete_tag_category_api_project_libraries__library_id__tag_categories__category_id__delete",
         "parameters": [
           {
             "name": "category_id",
@@ -1411,11 +2043,627 @@
               "type": "integer",
               "title": "Category Id"
             }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
           }
         ],
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}/projects": {
+      "get": {
+        "tags": [
+          "project-libraries",
+          "projects"
+        ],
+        "summary": "List Library Projects",
+        "operationId": "list_library_projects_api_project_libraries__library_id__projects_get",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          },
+          {
+            "name": "missing_tags",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "仅无任何标签关联的项目",
+              "default": false,
+              "title": "Missing Tags"
+            },
+            "description": "仅无任何标签关联的项目"
+          },
+          {
+            "name": "deleted_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "仅回收站内已软删除的项目",
+              "default": false,
+              "title": "Deleted Only"
+            },
+            "description": "仅回收站内已软删除的项目"
+          },
+          {
+            "name": "full_name",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "精确匹配 owner/repo",
+              "title": "Full Name"
+            },
+            "description": "精确匹配 owner/repo"
+          },
+          {
+            "name": "_start",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": " Start"
+            }
+          },
+          {
+            "name": "_end",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": " End"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectRead"
+                  },
+                  "title": "Response List Library Projects Api Project Libraries  Library Id  Projects Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "project-libraries",
+          "projects"
+        ],
+        "summary": "Create Library Project",
+        "operationId": "create_library_project_api_project_libraries__library_id__projects_post",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries": {
+      "get": {
+        "tags": [
+          "project-libraries"
+        ],
+        "summary": "List Project Libraries",
+        "operationId": "list_project_libraries_api_project_libraries_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectLibraryRead"
+                  },
+                  "type": "array",
+                  "title": "Response List Project Libraries Api Project Libraries Get"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "project-libraries"
+        ],
+        "summary": "Create Project Library",
+        "operationId": "create_project_library_api_project_libraries_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectLibraryCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectLibraryRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}": {
+      "get": {
+        "tags": [
+          "project-libraries"
+        ],
+        "summary": "Get Project Library Detail",
+        "operationId": "get_project_library_detail_api_project_libraries__library_id__get",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectLibraryRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "project-libraries"
+        ],
+        "summary": "Patch Project Library",
+        "operationId": "patch_project_library_api_project_libraries__library_id__patch",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProjectLibraryUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectLibraryRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "project-libraries"
+        ],
+        "summary": "Delete Project Library",
+        "operationId": "delete_project_library_api_project_libraries__library_id__delete",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/github": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Get Github Settings",
+        "operationId": "get_github_settings_api_settings_github_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GithubSettingsRead"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Put Github Settings",
+        "operationId": "put_github_settings_api_settings_github_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GithubSettingsUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GithubSettingsRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/github/profile": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Get Github Profile",
+        "operationId": "get_github_profile_api_settings_github_profile_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GithubProfileRead"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/github/test": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Post Github Test",
+        "operationId": "post_github_test_api_settings_github_test_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/GithubTestRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GithubTestResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/translation": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Get Translation Settings",
+        "operationId": "get_translation_settings_api_settings_translation_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationSettingsRead"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Put Translation Settings",
+        "operationId": "put_translation_settings_api_settings_translation_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TranslationSettingsUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationSettingsRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/translation/test": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Post Translation Test",
+        "operationId": "post_translation_test_api_settings_translation_test_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TranslationTestResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/translation/translate-text": {
+      "post": {
+        "tags": [
+          "translation"
+        ],
+        "summary": "Post Translate Text",
+        "operationId": "post_translate_text_api_translation_translate_text_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlainTextTranslateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlainTextTranslateRead"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -1477,6 +2725,699 @@
   },
   "components": {
     "schemas": {
+      "BundleFolderSpec": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Key"
+          },
+          "parent_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Key"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "sort_order": {
+            "type": "integer",
+            "title": "Sort Order",
+            "default": 0
+          },
+          "tags": {
+            "items": {
+              "$ref": "#/components/schemas/BundleTagSpec"
+            },
+            "type": "array",
+            "title": "Tags"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "name"
+        ],
+        "title": "BundleFolderSpec"
+      },
+      "BundleProjectSpec": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Key"
+          },
+          "folder_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Folder Key"
+          },
+          "github_url": {
+            "type": "string",
+            "maxLength": 2048,
+            "title": "Github Url"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 512,
+            "title": "Name"
+          },
+          "full_name": {
+            "type": "string",
+            "maxLength": 512,
+            "title": "Full Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "stars": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Stars",
+            "default": 0
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "author": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 512
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Author"
+          },
+          "license": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "License"
+          },
+          "ai_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ai Summary"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "deploy_methods": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deploy Methods"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "未体验",
+              "正在体验",
+              "推荐归档",
+              "放弃归档"
+            ],
+            "title": "State",
+            "default": "未体验"
+          },
+          "tags": {
+            "items": {
+              "$ref": "#/components/schemas/BundleTagSpec"
+            },
+            "type": "array",
+            "title": "Tags"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "github_url",
+          "name",
+          "full_name"
+        ],
+        "title": "BundleProjectSpec"
+      },
+      "BundleSourceInfo": {
+        "properties": {
+          "library_name": {
+            "type": "string",
+            "title": "Library Name"
+          },
+          "root_folder_name": {
+            "type": "string",
+            "title": "Root Folder Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "library_name",
+          "root_folder_name"
+        ],
+        "title": "BundleSourceInfo"
+      },
+      "BundleTagSpec": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "category_name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "BundleTagSpec"
+      },
+      "DiscoveryEnrichEntry": {
+        "properties": {
+          "full_name": {
+            "type": "string",
+            "maxLength": 512,
+            "minLength": 1,
+            "title": "Full Name"
+          },
+          "rank": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Rank"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "html_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Html Url"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "stars": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Stars",
+            "default": 0
+          },
+          "forks": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Forks",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "full_name",
+          "rank"
+        ],
+        "title": "DiscoveryEnrichEntry"
+      },
+      "DiscoveryEnrichRead": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DiscoveryRepoRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "fetched_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Fetched At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "fetched_at"
+        ],
+        "title": "DiscoveryEnrichRead"
+      },
+      "DiscoveryEnrichRequest": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DiscoveryEnrichEntry"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "DiscoveryEnrichRequest"
+      },
+      "DiscoveryPageRead": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DiscoveryRepoRead"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Page"
+          },
+          "per_page": {
+            "type": "integer",
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Per Page"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More"
+          },
+          "total_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Count"
+          },
+          "fetched_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Fetched At"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "rss",
+              "github_search"
+            ],
+            "title": "Source"
+          },
+          "search_meta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiscoveryTopicSearchMetaRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "page",
+          "per_page",
+          "has_more",
+          "fetched_at",
+          "source"
+        ],
+        "title": "DiscoveryPageRead"
+      },
+      "DiscoveryRepoRead": {
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Rank"
+          },
+          "full_name": {
+            "type": "string",
+            "title": "Full Name"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "github_url": {
+            "type": "string",
+            "title": "Github Url"
+          },
+          "html_url": {
+            "type": "string",
+            "title": "Html Url"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "stars": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Stars",
+            "default": 0
+          },
+          "forks": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Forks",
+            "default": 0
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          },
+          "topics": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Topics"
+          },
+          "owner_login": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Login"
+          },
+          "owner_avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Owner Avatar Url"
+          },
+          "pushed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pushed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rank",
+          "full_name",
+          "name",
+          "github_url",
+          "html_url"
+        ],
+        "title": "DiscoveryRepoRead"
+      },
+      "DiscoveryTopicSearchMetaRead": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "category",
+              "bilingual",
+              "plain"
+            ],
+            "title": "Mode"
+          },
+          "terms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Terms"
+          },
+          "category_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Name"
+          },
+          "translated": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Translated"
+          },
+          "translation_failed": {
+            "type": "boolean",
+            "title": "Translation Failed",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "mode"
+        ],
+        "title": "DiscoveryTopicSearchMetaRead"
+      },
+      "FolderBundle": {
+        "properties": {
+          "format_version": {
+            "type": "integer",
+            "const": 1,
+            "title": "Format Version",
+            "default": 1
+          },
+          "kind": {
+            "type": "string",
+            "const": "project_pilot.folder_bundle",
+            "title": "Kind",
+            "default": "project_pilot.folder_bundle"
+          },
+          "exported_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Exported At"
+          },
+          "source": {
+            "$ref": "#/components/schemas/BundleSourceInfo"
+          },
+          "folders": {
+            "items": {
+              "$ref": "#/components/schemas/BundleFolderSpec"
+            },
+            "type": "array",
+            "title": "Folders"
+          },
+          "projects": {
+            "items": {
+              "$ref": "#/components/schemas/BundleProjectSpec"
+            },
+            "type": "array",
+            "title": "Projects"
+          }
+        },
+        "type": "object",
+        "required": [
+          "exported_at",
+          "source",
+          "folders",
+          "projects"
+        ],
+        "title": "FolderBundle"
+      },
+      "FolderBundleImportRequest": {
+        "properties": {
+          "bundle": {
+            "$ref": "#/components/schemas/FolderBundle"
+          },
+          "target_parent_folder_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Parent Folder Id"
+          },
+          "skip_duplicate_github_url": {
+            "type": "boolean",
+            "title": "Skip Duplicate Github Url",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "bundle"
+        ],
+        "title": "FolderBundleImportRequest"
+      },
+      "FolderBundleImportResult": {
+        "properties": {
+          "created_folders": {
+            "type": "integer",
+            "title": "Created Folders"
+          },
+          "created_projects": {
+            "type": "integer",
+            "title": "Created Projects"
+          },
+          "skipped_projects": {
+            "type": "integer",
+            "title": "Skipped Projects"
+          },
+          "errors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Errors"
+          }
+        },
+        "type": "object",
+        "required": [
+          "created_folders",
+          "created_projects",
+          "skipped_projects"
+        ],
+        "title": "FolderBundleImportResult"
+      },
       "FolderCreate": {
         "properties": {
           "name": {
@@ -1687,6 +3628,44 @@
         "type": "object",
         "title": "FolderUpdate"
       },
+      "GithubProfileRead": {
+        "properties": {
+          "login": {
+            "type": "string",
+            "title": "Login",
+            "description": "GitHub 用户名"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name",
+            "description": "显示名称"
+          },
+          "avatar_url": {
+            "type": "string",
+            "title": "Avatar Url",
+            "description": "头像 URL"
+          },
+          "html_url": {
+            "type": "string",
+            "title": "Html Url",
+            "description": "GitHub 主页"
+          }
+        },
+        "type": "object",
+        "required": [
+          "login",
+          "avatar_url",
+          "html_url"
+        ],
+        "title": "GithubProfileRead"
+      },
       "GithubRepoPreviewRead": {
         "properties": {
           "full_name": {
@@ -1751,6 +3730,18 @@
             ],
             "title": "Token Preview",
             "description": "仅当 Token 保存在数据库时返回末 4 位；仅从环境变量读取时不返回末位"
+          },
+          "token_length": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token Length",
+            "description": "仅当 Token 保存在数据库时返回字符长度；仅从环境变量读取时不返回"
           }
         },
         "type": "object",
@@ -1777,6 +3768,24 @@
         },
         "type": "object",
         "title": "GithubSettingsUpdate"
+      },
+      "GithubTestRequest": {
+        "properties": {
+          "token": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Token",
+            "description": "可选：测试指定 Token；省略则测试当前生效 Token（数据库或环境变量）"
+          }
+        },
+        "type": "object",
+        "title": "GithubTestRequest"
       },
       "GithubTestResponse": {
         "properties": {
@@ -1839,6 +3848,34 @@
         ],
         "title": "LibraryTreeResponse",
         "description": "语雀式侧边栏：顶层文件夹树 + 未归入文件夹的项目。"
+      },
+      "PlainTextTranslateRead": {
+        "properties": {
+          "translated": {
+            "type": "string",
+            "title": "Translated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "translated"
+        ],
+        "title": "PlainTextTranslateRead"
+      },
+      "PlainTextTranslateRequest": {
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Content",
+            "description": "待翻译的纯文本"
+          }
+        },
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "title": "PlainTextTranslateRequest"
       },
       "ProjectCreate": {
         "properties": {
@@ -2057,6 +4094,141 @@
           "stars": 12000
         }
       },
+      "ProjectLibraryCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 256,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "ProjectLibraryCreate"
+      },
+      "ProjectLibraryRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "is_pinned": {
+            "type": "boolean",
+            "title": "Is Pinned"
+          },
+          "sort_order": {
+            "type": "integer",
+            "title": "Sort Order"
+          },
+          "project_count": {
+            "type": "integer",
+            "title": "Project Count",
+            "default": 0
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description",
+          "is_pinned",
+          "sort_order",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ProjectLibraryRead"
+      },
+      "ProjectLibraryUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 256,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "is_pinned": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Is Pinned"
+          },
+          "sort_order": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sort Order"
+          }
+        },
+        "type": "object",
+        "title": "ProjectLibraryUpdate"
+      },
       "ProjectRead": {
         "properties": {
           "github_url": {
@@ -2249,6 +4421,10 @@
             "type": "integer",
             "title": "Id"
           },
+          "project_library_id": {
+            "type": "integer",
+            "title": "Project Library Id"
+          },
           "folder_id": {
             "anyOf": [
               {
@@ -2319,6 +4495,7 @@
           "name",
           "full_name",
           "id",
+          "project_library_id",
           "state_changed_at",
           "created_at",
           "updated_at"
@@ -2333,9 +4510,56 @@
           },
           "source": {
             "type": "string",
-            "const": "github",
+            "enum": [
+              "cache",
+              "github"
+            ],
             "title": "Source",
             "default": "github"
+          },
+          "path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Path"
+          },
+          "is_default": {
+            "type": "boolean",
+            "title": "Is Default",
+            "default": true
+          },
+          "cached_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cached At"
+          },
+          "github_sha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Github Sha"
+          },
+          "content_changed": {
+            "type": "boolean",
+            "title": "Content Changed",
+            "default": false
           }
         },
         "type": "object",
@@ -2343,6 +4567,52 @@
           "content"
         ],
         "title": "ProjectReadmeRead"
+      },
+      "ProjectReleaseAssetRead": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "size": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Size"
+          },
+          "download_count": {
+            "type": "integer",
+            "title": "Download Count",
+            "default": 0
+          },
+          "browser_download_url": {
+            "type": "string",
+            "title": "Browser Download Url"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "browser_download_url"
+        ],
+        "title": "ProjectReleaseAssetRead"
       },
       "ProjectReleaseRead": {
         "properties": {
@@ -2404,6 +4674,13 @@
             "type": "boolean",
             "title": "Draft",
             "default": false
+          },
+          "assets": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectReleaseAssetRead"
+            },
+            "type": "array",
+            "title": "Assets"
           }
         },
         "type": "object",
@@ -2420,6 +4697,32 @@
             },
             "type": "array",
             "title": "Items"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "cache",
+              "github"
+            ],
+            "title": "Source",
+            "default": "github"
+          },
+          "cached_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cached At"
+          },
+          "content_changed": {
+            "type": "boolean",
+            "title": "Content Changed",
+            "default": false
           }
         },
         "type": "object",

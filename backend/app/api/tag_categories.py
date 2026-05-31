@@ -5,7 +5,9 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_project_library
 from app.core.database import get_db
+from app.models.project_library import ProjectLibrary
 from app.models.tag import Tag, TagCategory
 from app.schemas.tag_category import TagCategoryCreate, TagCategoryRead, TagCategoryUpdate
 
@@ -17,8 +19,15 @@ def _normalize_name(name: str) -> str:
 
 
 @router.get("", response_model=list[TagCategoryRead])
-async def list_tag_categories(db: AsyncSession = Depends(get_db)) -> list[TagCategoryRead]:
-    stmt = select(TagCategory).order_by(TagCategory.sort_order.asc(), TagCategory.name.asc())
+async def list_tag_categories(
+    db: AsyncSession = Depends(get_db),
+    library: ProjectLibrary = Depends(get_project_library),
+) -> list[TagCategoryRead]:
+    stmt = (
+        select(TagCategory)
+        .where(TagCategory.project_library_id == library.id)
+        .order_by(TagCategory.sort_order.asc(), TagCategory.name.asc())
+    )
     rows = (await db.execute(stmt)).scalars().all()
     return [TagCategoryRead.model_validate(r) for r in rows]
 
@@ -27,16 +36,21 @@ async def list_tag_categories(db: AsyncSession = Depends(get_db)) -> list[TagCat
 async def create_tag_category(
     body: TagCategoryCreate,
     db: AsyncSession = Depends(get_db),
+    library: ProjectLibrary = Depends(get_project_library),
 ) -> TagCategoryRead:
     name = _normalize_name(body.name)
     if not name:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="分类名不能为空")
 
-    max_so = await db.scalar(select(func.coalesce(func.max(TagCategory.sort_order), -1)))
+    max_so = await db.scalar(
+        select(func.coalesce(func.max(TagCategory.sort_order), -1)).where(
+            TagCategory.project_library_id == library.id
+        )
+    )
     next_order = int(max_so if max_so is not None else -1) + 1
     sort_order = body.sort_order if body.sort_order is not None else next_order
 
-    cat = TagCategory(name=name, sort_order=sort_order)
+    cat = TagCategory(name=name, sort_order=sort_order, project_library_id=library.id)
     db.add(cat)
     try:
         await db.commit()
@@ -55,9 +69,10 @@ async def update_tag_category(
     category_id: int,
     body: TagCategoryUpdate,
     db: AsyncSession = Depends(get_db),
+    library: ProjectLibrary = Depends(get_project_library),
 ) -> TagCategoryRead:
     cat = await db.get(TagCategory, category_id)
-    if cat is None:
+    if cat is None or cat.project_library_id != library.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="分类不存在")
 
     payload = body.model_dump(exclude_unset=True)
@@ -82,9 +97,13 @@ async def update_tag_category(
 
 
 @router.delete("/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_tag_category(category_id: int, db: AsyncSession = Depends(get_db)) -> None:
+async def delete_tag_category(
+    category_id: int,
+    db: AsyncSession = Depends(get_db),
+    library: ProjectLibrary = Depends(get_project_library),
+) -> None:
     cat = await db.get(TagCategory, category_id)
-    if cat is None:
+    if cat is None or cat.project_library_id != library.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="分类不存在")
 
     await db.delete(cat)

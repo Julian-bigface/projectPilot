@@ -64,7 +64,7 @@ export function LibraryFolderFilterPanel({ entries }: LibraryFolderFilterPanelPr
         </div>
       </div>
 
-      <div className="max-h-[280px] overflow-y-auto px-2 py-2">
+      <div className="max-h-[280px] overflow-y-auto overscroll-contain px-2 py-2 main-auto-scrollbar" onWheel={(e) => e.stopPropagation()}>
         {visible.length === 0 ? (
           <p className="text-muted-foreground px-1 py-2 text-xs">暂无文件夹</p>
         ) : (

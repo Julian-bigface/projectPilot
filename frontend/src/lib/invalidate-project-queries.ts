@@ -1,9 +1,20 @@
 import type { QueryClient } from "@tanstack/react-query"
 
-/** 项目增删改后统一失效的查询键（资料库树、列表、标签、无标签筛选、详情） */
-export function invalidateProjectRelated(queryClient: QueryClient, projectId?: number) {
+import { patchProjectInLibraryCaches } from "@/lib/patch-project-in-library-caches"
+import type { Project } from "@/types/project"
+
+/** 项目增删改后：先写入缓存（可选），再失效相关查询。 */
+export async function invalidateProjectRelated(
+  queryClient: QueryClient,
+  projectId?: number,
+  updatedProject?: Project
+) {
+  if (updatedProject) {
+    patchProjectInLibraryCaches(queryClient, updatedProject)
+  }
+
   const keys: Promise<unknown>[] = [
-    queryClient.invalidateQueries({ queryKey: ["library", "tree"] }),
+    queryClient.invalidateQueries({ queryKey: ["library"] }),
     queryClient.invalidateQueries({ queryKey: ["projects"] }),
     queryClient.invalidateQueries({ queryKey: ["tags"] }),
     queryClient.invalidateQueries({ queryKey: ["projects", "missing-tags"] }),

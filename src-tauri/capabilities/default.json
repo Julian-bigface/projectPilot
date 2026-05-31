@@ -1,0 +1,21 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default permissions for Project Pilot desktop",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "log:default",
+    "opener:allow-default-urls",
+    {
+      "identifier": "shell:allow-execute",
+      "allow": [
+        {
+          "name": "binaries/project-pilot-api",
+          "sidecar": true,
+          "args": true
+        }
+      ]
+    }
+  ]
+}

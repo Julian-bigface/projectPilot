@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { usePlApi } from "@/hooks/use-pl-api"
 import { findFolderNode, countProjectsInSubtree } from "@/lib/library-tree"
 import { domainTagPillClass } from "@/lib/topic-pill-palette"
 import { cn } from "@/lib/utils"
@@ -49,15 +50,16 @@ type LibraryFolderInfoPanelProps = {
 
 export function LibraryFolderInfoPanel({ folderId }: LibraryFolderInfoPanelProps) {
   const queryClient = useQueryClient()
+  const plApi = usePlApi()
   const [metaOpen, setMetaOpen] = useState(true)
   const [draftName, setDraftName] = useState("")
   const [draftDescription, setDraftDescription] = useState("")
   const [tagDialogOpen, setTagDialogOpen] = useState(false)
 
   const treeQuery = useQuery({
-    queryKey: ["library", "tree"],
+    queryKey: ["library", plApi.libraryId, "tree"],
     queryFn: async (): Promise<LibraryTreeResponse> => {
-      const res = await fetch("/api/library/tree")
+      const res = await fetch(plApi.path("/library/tree"))
       if (!res.ok) {
         throw new Error(await parseErrorMessage(res))
       }
@@ -66,9 +68,9 @@ export function LibraryFolderInfoPanel({ folderId }: LibraryFolderInfoPanelProps
   })
 
   const foldersFlatQuery = useQuery({
-    queryKey: ["folders", "flat"],
+    queryKey: ["folders", plApi.libraryId, "flat"],
     queryFn: async (): Promise<FolderRow[]> => {
-      const res = await fetch("/api/folders")
+      const res = await fetch(plApi.path("/folders"))
       if (!res.ok) {
         throw new Error(await parseErrorMessage(res))
       }
@@ -111,7 +113,7 @@ export function LibraryFolderInfoPanel({ folderId }: LibraryFolderInfoPanelProps
       if (body.description !== undefined) {
         payload.description = body.description
       }
-      const res = await fetch(`/api/folders/${body.id}`, {
+      const res = await fetch(plApi.path(`/folders/${body.id}`), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -122,8 +124,8 @@ export function LibraryFolderInfoPanel({ folderId }: LibraryFolderInfoPanelProps
       return res.json() as Promise<FolderRow>
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["library", "tree"] })
-      await queryClient.invalidateQueries({ queryKey: ["folders", "flat"] })
+      await queryClient.invalidateQueries({ queryKey: ["library", plApi.libraryId, "tree"] })
+      await queryClient.invalidateQueries({ queryKey: ["folders", plApi.libraryId, "flat"] })
     },
     onError: (err) => {
       toast.error(err instanceof Error ? err.message : "更新失败")

@@ -16,6 +16,7 @@ export interface ProjectTagBrief {
 
 export interface Project {
   id: number
+  project_library_id: number
   folder_id: number | null
   folder_name: string | null
   github_url: string

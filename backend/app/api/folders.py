@@ -6,9 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_project_library
 from app.core.database import get_db
 from app.models.folder import Folder
 from app.models.project import Project
+from app.models.project_library import ProjectLibrary
 from app.models.tag import FolderTag, Tag
 from app.schemas.folder import FolderCreate, FolderRead, FolderReorder, FolderUpdate
 from app.services.folder_read import folder_to_read, folders_to_read
@@ -18,14 +20,23 @@ router = APIRouter()
 _TAG_IDS_OMIT = object()
 
 
-async def _get_folder(db: AsyncSession, folder_id: int) -> Folder | None:
-    return await db.get(Folder, folder_id)
+async def _get_folder(
+    db: AsyncSession, folder_id: int, library_id: int
+) -> Folder | None:
+    row = await db.get(Folder, folder_id)
+    if row is None or row.project_library_id != library_id:
+        return None
+    return row
 
 
-async def _sync_folder_tags(db: AsyncSession, folder_id: int, tag_ids: list[int]) -> None:
+async def _sync_folder_tags(
+    db: AsyncSession, folder_id: int, tag_ids: list[int], library_id: int
+) -> None:
     ordered = list(dict.fromkeys(tag_ids))
     if ordered:
-        stmt = select(Tag.id).where(Tag.id.in_(ordered))
+        stmt = select(Tag.id).where(
+            Tag.id.in_(ordered), Tag.project_library_id == library_id
+        )
         found = set((await db.execute(stmt)).scalars().all())
         if found != set(ordered):
             raise HTTPException(
@@ -54,8 +65,14 @@ async def _folder_is_ancestor_of(db: AsyncSession, ancestor_id: int, node_id: in
     return False
 
 
-async def _next_sort_order(db: AsyncSession, parent_id: int | None) -> int:
-    m = await db.scalar(select(func.max(Folder.sort_order)).where(Folder.parent_id == parent_id))
+async def _next_sort_order(
+    db: AsyncSession, parent_id: int | None, library_id: int
+) -> int:
+    m = await db.scalar(
+        select(func.max(Folder.sort_order)).where(
+            Folder.parent_id == parent_id, Folder.project_library_id == library_id
+        )
+    )
     return (m if m is not None else -1) + 1
 
 
@@ -80,10 +97,13 @@ async def _collect_subtree_folder_ids_postorder(db: AsyncSession, root_id: int) 
 async def _normalize_siblings(
     db: AsyncSession,
     parent_id: int | None,
+    library_id: int,
     *,
     exclude_folder_id: int | None = None,
 ) -> None:
-    q = select(Folder).where(Folder.parent_id == parent_id)
+    q = select(Folder).where(
+        Folder.parent_id == parent_id, Folder.project_library_id == library_id
+    )
     if exclude_folder_id is not None:
         q = q.where(Folder.id != exclude_folder_id)
     rows = (
@@ -99,9 +119,17 @@ async def _normalize_siblings(
 async def reorder_folders(
     body: FolderReorder,
     db: AsyncSession = Depends(get_db),
+    library: ProjectLibrary = Depends(get_project_library),
 ) -> list[FolderRead]:
     expected = (
-        (await db.execute(select(Folder).where(Folder.parent_id == body.parent_id)))
+        (
+            await db.execute(
+                select(Folder).where(
+                    Folder.parent_id == body.parent_id,
+                    Folder.project_library_id == library.id,
+                )
+            )
+        )
         .scalars()
         .all()
     )
@@ -123,11 +151,16 @@ async def reorder_folders(
 
 
 @router.get("", response_model=list[FolderRead])
-async def list_folders_flat(db: AsyncSession = Depends(get_db)) -> list[FolderRead]:
+async def list_folders_flat(
+    db: AsyncSession = Depends(get_db),
+    library: ProjectLibrary = Depends(get_project_library),
+) -> list[FolderRead]:
     rows = (
         (
             await db.execute(
-                select(Folder).order_by(
+                select(Folder)
+                .where(Folder.project_library_id == library.id)
+                .order_by(
                     Folder.parent_id.asc(),
                     Folder.sort_order.asc(),
                     Folder.name.asc(),
@@ -141,14 +174,23 @@ async def list_folders_flat(db: AsyncSession = Depends(get_db)) -> list[FolderRe
 
 
 @router.post("", response_model=FolderRead, status_code=status.HTTP_201_CREATED)
-async def create_folder(body: FolderCreate, db: AsyncSession = Depends(get_db)) -> FolderRead:
+async def create_folder(
+    body: FolderCreate,
+    db: AsyncSession = Depends(get_db),
+    library: ProjectLibrary = Depends(get_project_library),
+) -> FolderRead:
     if body.parent_id is not None:
-        parent = await _get_folder(db, body.parent_id)
+        parent = await _get_folder(db, body.parent_id, library.id)
         if parent is None:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="parent_id 不存在")
 
-    sort_order = await _next_sort_order(db, body.parent_id)
-    folder = Folder(parent_id=body.parent_id, name=body.name.strip(), sort_order=sort_order)
+    sort_order = await _next_sort_order(db, body.parent_id, library.id)
+    folder = Folder(
+        project_library_id=library.id,
+        parent_id=body.parent_id,
+        name=body.name.strip(),
+        sort_order=sort_order,
+    )
     db.add(folder)
     await db.commit()
     await db.refresh(folder)
@@ -160,8 +202,9 @@ async def patch_folder(
     folder_id: int,
     body: FolderUpdate,
     db: AsyncSession = Depends(get_db),
+    library: ProjectLibrary = Depends(get_project_library),
 ) -> FolderRead:
-    folder = await _get_folder(db, folder_id)
+    folder = await _get_folder(db, folder_id, library.id)
     if folder is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文件夹不存在")
 
@@ -174,7 +217,7 @@ async def patch_folder(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="tag_ids 须为整数数组",
             )
-        await _sync_folder_tags(db, folder_id, [int(x) for x in tag_ids_update])
+        await _sync_folder_tags(db, folder_id, [int(x) for x in tag_ids_update], library.id)
 
     if "parent_id" in payload:
         new_parent = payload["parent_id"]
@@ -184,7 +227,7 @@ async def patch_folder(
                 detail="不能将文件夹设为自己的子级",
             )
         if new_parent is not None:
-            p = await _get_folder(db, new_parent)
+            p = await _get_folder(db, new_parent, library.id)
             if p is None:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
@@ -196,9 +239,11 @@ async def patch_folder(
                     detail="不能将文件夹移动到其子文件夹下",
                 )
         if new_parent != folder.parent_id:
-            await _normalize_siblings(db, folder.parent_id, exclude_folder_id=folder.id)
+            await _normalize_siblings(
+                db, folder.parent_id, library.id, exclude_folder_id=folder.id
+            )
             folder.parent_id = new_parent
-            folder.sort_order = await _next_sort_order(db, new_parent)
+            folder.sort_order = await _next_sort_order(db, new_parent, library.id)
 
     if "name" in payload:
         folder.name = payload["name"].strip()
@@ -213,8 +258,12 @@ async def patch_folder(
 
 
 @router.delete("/{folder_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_folder(folder_id: int, db: AsyncSession = Depends(get_db)) -> None:
-    folder = await _get_folder(db, folder_id)
+async def delete_folder(
+    folder_id: int,
+    db: AsyncSession = Depends(get_db),
+    library: ProjectLibrary = Depends(get_project_library),
+) -> None:
+    folder = await _get_folder(db, folder_id, library.id)
     if folder is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文件夹不存在")
 
@@ -234,5 +283,5 @@ async def delete_folder(folder_id: int, db: AsyncSession = Depends(get_db)) -> N
             await db.delete(row)
 
     await db.flush()
-    await _normalize_siblings(db, parent_id)
+    await _normalize_siblings(db, parent_id, library.id)
     await db.commit()

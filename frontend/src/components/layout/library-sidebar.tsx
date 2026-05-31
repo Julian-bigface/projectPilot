@@ -1,9 +1,24 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { LayoutGrid, PieChart, Plus, Search, Tag, Tags, Trash2 } from "lucide-react"
+import {
+  ChevronDown,
+  ChevronLeft,
+  LayoutGrid,
+  PieChart,
+  Plus,
+  Search,
+  Tag,
+  Tags,
+  Trash2,
+} from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useLocation, useNavigate } from "react-router"
+import { toast } from "sonner"
 
+import { useLibraryProjectPreview } from "@/context/library-project-preview"
 import { useLibrarySelection } from "@/context/library-selection"
+import { useProjectLibrary } from "@/context/project-library"
+import { usePlApi } from "@/hooks/use-pl-api"
+import type { ProjectLibrary } from "@/types/project-library"
 import { DEFAULT_LIBRARY_SCOPE, type LibraryScope } from "@/types/library-scope"
 import {
   AlertDialog,
@@ -36,10 +51,15 @@ import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
 import { FolderNestDropBar, LibraryFolderTree } from "@/components/layout/library-folder-tree"
+import { FolderTreePicker } from "@/components/library/folder-tree-picker"
+import { ImportFolderBundleDialog } from "@/components/library/import-folder-bundle-dialog"
+import { SaveCancelledError } from "@/lib/download-blob"
+import { exportFolderBundle, parseFolderBundleFileText } from "@/lib/folder-bundle"
+import type { FolderBundle } from "@/types/folder-bundle"
 import { parseGithubRepoUrl } from "@/lib/github-url"
 import { fetchGithubRepoPreview } from "@/lib/github-repo-preview"
 import { getLibraryScopeDisplayLabel } from "@/lib/library-scope-label"
-import { filterFolderTreeByName, findFolderNode, totalProjectsInLibraryTree } from "@/lib/library-tree"
+import { filterFolderTreeByName, findFolderNode, totalProjectsInLibraryTree, collectFolderFilterEntries } from "@/lib/library-tree"
 import type { FolderRow, LibraryTreeResponse } from "@/types/library"
 import { cn } from "@/lib/utils"
 
@@ -63,13 +83,18 @@ export function LibrarySidebar() {
   const queryClient = useQueryClient()
   const navigate = useNavigate()
   const location = useLocation()
+  const { library, libraryId } = useProjectLibrary()
+  const plApi = usePlApi()
+  const { setPreviewProject } = useLibraryProjectPreview()
   const { libraryScope, setLibraryScope, selectedFolderId, setBrowsePendingFolderId } = useLibrarySelection()
 
+  const libraryPath = `/libraries/${libraryId}`
+
   const goLibraryIfNeeded = useCallback(() => {
-    if (location.pathname !== "/library") {
-      navigate("/library")
+    if (location.pathname !== libraryPath) {
+      navigate(libraryPath)
     }
-  }, [location.pathname, navigate])
+  }, [location.pathname, libraryPath, navigate])
 
   const selectPresetScope = useCallback(
     (scope: LibraryScope) => {
@@ -97,16 +122,32 @@ export function LibrarySidebar() {
   const [deleteFolderId, setDeleteFolderId] = useState<number | null>(null)
   const [deleteFolderName, setDeleteFolderName] = useState("")
 
+  const [importBundleOpen, setImportBundleOpen] = useState(false)
+  const [importBundleTargetId, setImportBundleTargetId] = useState<number | null>(null)
+  const [importBundleTargetLabel, setImportBundleTargetLabel] = useState("库根")
+  const [importBundleInitial, setImportBundleInitial] = useState<FolderBundle | null>(null)
+
   const [formError, setFormError] = useState<string | null>(null)
   const [previewLoading, setPreviewLoading] = useState(false)
   const [previewError, setPreviewError] = useState<string | null>(null)
   const [previewInfo, setPreviewInfo] = useState<string | null>(null)
   const introEditedRef = useRef(false)
 
+  const librariesListQuery = useQuery({
+    queryKey: ["project-libraries"],
+    queryFn: async (): Promise<ProjectLibrary[]> => {
+      const res = await fetch("/api/project-libraries")
+      if (!res.ok) {
+        throw new Error(await parseErrorMessage(res))
+      }
+      return res.json() as Promise<ProjectLibrary[]>
+    },
+  })
+
   const treeQuery = useQuery({
-    queryKey: ["library", "tree"],
+    queryKey: ["library", libraryId, "tree"],
     queryFn: async (): Promise<LibraryTreeResponse> => {
-      const res = await fetch("/api/library/tree")
+      const res = await fetch(plApi.path("/library/tree"))
       if (!res.ok) {
         throw new Error(await parseErrorMessage(res))
       }
@@ -115,9 +156,11 @@ export function LibrarySidebar() {
   })
 
   const noTagsCountQuery = useQuery({
-    queryKey: ["projects", "missing-tags-count"],
+    queryKey: ["projects", libraryId, "missing-tags-count"],
     queryFn: async (): Promise<number> => {
-      const res = await fetch("/api/projects?missing_tags=true&_start=0&_end=1")
+      const res = await fetch(
+        `${plApi.path("/projects")}?missing_tags=true&_start=0&_end=1`
+      )
       if (!res.ok) {
         throw new Error(await parseErrorMessage(res))
       }
@@ -127,9 +170,9 @@ export function LibrarySidebar() {
   })
 
   const trashCountQuery = useQuery({
-    queryKey: ["projects", "trash-count"],
+    queryKey: ["projects", libraryId, "trash-count"],
     queryFn: async (): Promise<number> => {
-      const res = await fetch("/api/projects?deleted_only=true&_start=0&_end=1")
+      const res = await fetch(`${plApi.path("/projects")}?deleted_only=true&_start=0&_end=1`)
       if (!res.ok) {
         throw new Error(await parseErrorMessage(res))
       }
@@ -139,9 +182,9 @@ export function LibrarySidebar() {
   })
 
   const tagsListQuery = useQuery({
-    queryKey: ["tags"],
+    queryKey: ["tags", libraryId],
     queryFn: async (): Promise<unknown[]> => {
-      const res = await fetch("/api/tags")
+      const res = await fetch(plApi.path("/tags"))
       if (!res.ok) {
         throw new Error(await parseErrorMessage(res))
       }
@@ -156,17 +199,6 @@ export function LibrarySidebar() {
     const n = tagsListQuery.data.length
     return n > 0 ? String(n) : "—"
   }, [tagsListQuery.data, tagsListQuery.isError])
-
-  const foldersFlatQuery = useQuery({
-    queryKey: ["folders", "flat"],
-    queryFn: async (): Promise<FolderRow[]> => {
-      const res = await fetch("/api/folders")
-      if (!res.ok) {
-        throw new Error(await parseErrorMessage(res))
-      }
-      return res.json() as Promise<FolderRow[]>
-    },
-  })
 
   useEffect(() => {
     if (folderDialogOpen) {
@@ -241,7 +273,7 @@ export function LibrarySidebar() {
 
   const createFolderMutation = useMutation({
     mutationFn: async (body: { name: string; parent_id: number | null }) => {
-      const res = await fetch("/api/folders", {
+      const res = await fetch(plApi.path("/folders"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -252,8 +284,8 @@ export function LibrarySidebar() {
       return res.json() as Promise<FolderRow>
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["library", "tree"] })
-      await queryClient.invalidateQueries({ queryKey: ["folders", "flat"] })
+      await queryClient.invalidateQueries({ queryKey: ["library", libraryId, "tree"] })
+      await queryClient.invalidateQueries({ queryKey: ["folders", libraryId, "flat"] })
       await queryClient.invalidateQueries()
       setFolderDialogOpen(false)
     },
@@ -261,7 +293,7 @@ export function LibrarySidebar() {
 
   const createProjectMutation = useMutation({
     mutationFn: async (values: Record<string, unknown>) => {
-      const res = await fetch("/api/projects", {
+      const res = await fetch(plApi.path("/projects"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
@@ -272,7 +304,7 @@ export function LibrarySidebar() {
       return res.json()
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["library", "tree"] })
+      await queryClient.invalidateQueries({ queryKey: ["library", libraryId, "tree"] })
       await queryClient.invalidateQueries()
       setProjectDialogOpen(false)
     },
@@ -280,7 +312,7 @@ export function LibrarySidebar() {
 
   const renameFolderMutation = useMutation({
     mutationFn: async ({ id, name }: { id: number; name: string }) => {
-      const res = await fetch(`/api/folders/${id}`, {
+      const res = await fetch(plApi.path(`/folders/${id}`), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name }),
@@ -291,8 +323,8 @@ export function LibrarySidebar() {
       return res.json()
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["library", "tree"] })
-      await queryClient.invalidateQueries({ queryKey: ["folders", "flat"] })
+      await queryClient.invalidateQueries({ queryKey: ["library", libraryId, "tree"] })
+      await queryClient.invalidateQueries({ queryKey: ["folders", libraryId, "flat"] })
       await queryClient.invalidateQueries()
       setRenameOpen(false)
       setRenameFolderId(null)
@@ -301,7 +333,7 @@ export function LibrarySidebar() {
 
   const deleteFolderMutation = useMutation({
     mutationFn: async (id: number) => {
-      const res = await fetch(`/api/folders/${id}`, { method: "DELETE" })
+      const res = await fetch(plApi.path(`/folders/${id}`), { method: "DELETE" })
       if (!res.ok) {
         throw new Error(await parseErrorMessage(res))
       }
@@ -310,10 +342,14 @@ export function LibrarySidebar() {
       setDeleteOpen(false)
       setDeleteFolderId(null)
       setBrowsePendingFolderId(null)
-      await queryClient.invalidateQueries({ queryKey: ["folders", "flat"] })
-      await queryClient.refetchQueries({ queryKey: ["library", "tree"] })
+      await queryClient.invalidateQueries({ queryKey: ["folders", libraryId, "flat"] })
+      await queryClient.refetchQueries({ queryKey: ["library", libraryId, "tree"] })
       await queryClient.invalidateQueries()
-      const treeData = queryClient.getQueryData<LibraryTreeResponse>(["library", "tree"])
+      const treeData = queryClient.getQueryData<LibraryTreeResponse>([
+        "library",
+        libraryId,
+        "tree",
+      ])
       setLibraryScope((prev) => {
         if (prev.kind !== "folder") {
           return prev
@@ -395,16 +431,22 @@ export function LibrarySidebar() {
     )
   }
 
-  const flatFolders = foldersFlatQuery.data ?? []
+  const tree = treeQuery.data
+
+  const folderTreeEntries = useMemo(() => {
+    if (!tree?.folders) return []
+    return collectFolderFilterEntries(tree.folders)
+  }, [tree?.folders])
 
   const addProjectFolderLabel = useMemo(() => {
     if (projectFolderId === null) {
       return "未归类（库根层）"
     }
-    return flatFolders.find((f) => f.id === projectFolderId)?.name ?? "所选文件夹"
-  }, [projectFolderId, flatFolders])
-
-  const tree = treeQuery.data
+    if (!tree?.folders) {
+      return "所选文件夹"
+    }
+    return findFolderNode(tree.folders, projectFolderId)?.name ?? "所选文件夹"
+  }, [projectFolderId, tree?.folders])
 
   const filteredRoots = useMemo(() => {
     if (!tree?.folders) {
@@ -450,6 +492,48 @@ export function LibrarySidebar() {
     setDeleteOpen(true)
   }
 
+  const openImportBundle = useCallback(
+    (targetParentFolderId: number | null, targetLabel: string, initial?: FolderBundle | null) => {
+      setImportBundleTargetId(targetParentFolderId)
+      setImportBundleTargetLabel(targetLabel)
+      setImportBundleInitial(initial ?? null)
+      setImportBundleOpen(true)
+    },
+    []
+  )
+
+  const handleFileDropImport = useCallback(
+    async (
+      file: File,
+      targetParentFolderId: number | null,
+      targetLabel: string
+    ) => {
+      try {
+        const text = await file.text()
+        const bundle = parseFolderBundleFileText(text)
+        openImportBundle(targetParentFolderId, targetLabel, bundle)
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "无法读取包文件")
+      }
+    },
+    [openImportBundle]
+  )
+
+  const handleExportFolder = useCallback(
+    async (folderId: number, folderName: string) => {
+      try {
+        const result = await exportFolderBundle(libraryId, folderId, folderName)
+        toast.success(`已导出「${result.filename}」`)
+      } catch (e) {
+        if (e instanceof SaveCancelledError) {
+          return
+        }
+        toast.error(e instanceof Error ? e.message : "导出失败")
+      }
+    },
+    [libraryId]
+  )
+
   const confirmDelete = () => {
     if (deleteFolderId === null) {
       return
@@ -463,11 +547,67 @@ export function LibrarySidebar() {
 
   const presetActive = (kind: LibraryScope["kind"]) => libraryScope.kind === kind
 
+  const handleBackToLibraries = () => {
+    setLibraryScope(DEFAULT_LIBRARY_SCOPE)
+    setBrowsePendingFolderId(null)
+    setPreviewProject(null)
+    navigate("/libraries")
+  }
+
+  const switchLibrary = (id: number) => {
+    if (id === libraryId) {
+      return
+    }
+    setLibraryScope(DEFAULT_LIBRARY_SCOPE)
+    setBrowsePendingFolderId(null)
+    setPreviewProject(null)
+    navigate(`/libraries/${id}`)
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="border-border shrink-0 border-b px-2 py-2">
-        <div className="text-foreground truncate text-sm font-semibold">资料库</div>
-        <p className="text-muted-foreground truncate text-[11px] leading-tight">当前：{selectedFolderLabel}</p>
+        <div className="flex min-w-0 items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-7 shrink-0"
+            aria-label="返回项目库列表"
+            title="返回项目库"
+            onClick={handleBackToLibraries}
+          >
+            <ChevronLeft className="size-4 stroke-[2]" aria-hidden />
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="text-foreground hover:bg-accent/50 flex min-w-0 flex-1 items-center gap-0.5 rounded-md px-1 py-0.5 text-left text-sm font-semibold"
+              >
+                <span className="truncate">{library?.name ?? "项目库"}</span>
+                <ChevronDown className="text-muted-foreground size-3.5 shrink-0" aria-hidden />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="max-h-64 w-56 overflow-y-auto">
+              {(librariesListQuery.data ?? []).map((lib) => (
+                <DropdownMenuItem
+                  key={lib.id}
+                  onClick={() => switchLibrary(lib.id)}
+                  className={cn(lib.id === libraryId && "bg-accent")}
+                >
+                  <span className="truncate">{lib.name}</span>
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuItem onClick={() => navigate("/libraries")}>
+                管理项目库…
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+        <p className="text-muted-foreground truncate pl-8 text-[11px] leading-tight">
+          当前：{selectedFolderLabel}
+        </p>
       </div>
 
       <div className="border-border shrink-0 border-b px-2 pb-2 pt-1.5">
@@ -576,7 +716,11 @@ export function LibrarySidebar() {
           <LibraryFolderTree
             className="min-h-0"
             folderNestSlot={
-              <FolderNestDropBar className="flex min-h-[28px] items-center justify-between gap-2 px-1.5 pb-px pt-2">
+              <FolderNestDropBar
+                className="flex min-h-[28px] items-center justify-between gap-2 px-1.5 pb-px pt-2"
+                onOpenImportToRoot={() => openImportBundle(null, "库根")}
+                onFileDropToRoot={(file) => void handleFileDropImport(file, null, "库根")}
+              >
                 <button
                   type="button"
                   onClick={() => selectPresetScope({ kind: "folders_all" })}
@@ -623,6 +767,11 @@ export function LibrarySidebar() {
             }}
             onOpenRename={openRename}
             onOpenDelete={openDelete}
+            onOpenExport={(id, name) => void handleExportFolder(id, name)}
+            onOpenImport={openImportBundle}
+            onFileDropImport={(file, targetId, label) =>
+              void handleFileDropImport(file, targetId, label)
+            }
           />
         ) : null}
       </div>
@@ -647,22 +796,17 @@ export function LibrarySidebar() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="folder-parent">父文件夹</Label>
-                <select
+                <FolderTreePicker
                   id="folder-parent"
-                  className="border-input bg-background ring-offset-background focus-visible:ring-ring flex h-9 w-full rounded-md border px-3 py-1 text-sm shadow-sm focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none"
+                  entries={folderTreeEntries}
                   value={folderParentId === null ? "" : String(folderParentId)}
-                  onChange={(e) =>
-                    setFolderParentId(e.target.value === "" ? null : Number.parseInt(e.target.value, 10))
+                  emptyValue=""
+                  rootLabel="顶层（无父级）"
+                  onChange={(v) =>
+                    setFolderParentId(v === "" ? null : Number.parseInt(v, 10))
                   }
-                  disabled={foldersFlatQuery.isLoading}
-                >
-                  <option value="">顶层（无父级）</option>
-                  {flatFolders.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.name}
-                    </option>
-                  ))}
-                </select>
+                  disabled={treeQuery.isLoading}
+                />
               </div>
               {formError ? <p className="text-destructive text-xs">{formError}</p> : null}
             </div>
@@ -821,6 +965,15 @@ export function LibrarySidebar() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ImportFolderBundleDialog
+        open={importBundleOpen}
+        onOpenChange={setImportBundleOpen}
+        libraryId={libraryId}
+        targetParentFolderId={importBundleTargetId}
+        targetLabel={importBundleTargetLabel}
+        initialBundle={importBundleInitial}
+      />
     </div>
   )
 }

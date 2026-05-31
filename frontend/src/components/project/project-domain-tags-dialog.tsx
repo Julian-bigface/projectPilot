@@ -16,6 +16,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { useOptionalProjectLibrary } from "@/context/project-library"
+import { plApiPath } from "@/lib/pl-api"
 import { invalidateProjectRelated } from "@/lib/invalidate-project-queries"
 import { cn } from "@/lib/utils"
 import type { Project } from "@/types/project"
@@ -82,6 +84,8 @@ export type ProjectDomainTagsDialogProps = {
   title?: string
   /** 保存成功后额外回调（如详情页写入 React Query 缓存） */
   onSaved?: (project: Project) => void
+  /** 详情页等无 Provider 时显式传入 */
+  projectLibraryId?: number
 }
 
 export function ProjectDomainTagsDialog({
@@ -92,8 +96,17 @@ export function ProjectDomainTagsDialog({
   tagIdsKey,
   title = "编辑领域标签",
   onSaved,
+  projectLibraryId: projectLibraryIdProp,
 }: ProjectDomainTagsDialogProps) {
   const queryClient = useQueryClient()
+  const plCtx = useOptionalProjectLibrary()
+  const libraryId = projectLibraryIdProp ?? plCtx?.libraryId
+  const apiPath = (suffix: string) => {
+    if (libraryId == null) {
+      throw new Error("缺少 projectLibraryId")
+    }
+    return plApiPath(libraryId, suffix)
+  }
   const [draftTagIds, setDraftTagIds] = useState<number[]>([])
   const [tagsError, setTagsError] = useState<string | null>(null)
   const [tagPickerNav, setTagPickerNav] = useState<TagPickerNav>({ kind: "all" })
@@ -118,27 +131,27 @@ export function ProjectDomainTagsDialog({
   }, [open])
 
   const allTagsQuery = useQuery({
-    queryKey: ["tags"],
+    queryKey: ["tags", libraryId],
     queryFn: async (): Promise<TagWithUsage[]> => {
-      const res = await fetch("/api/tags")
+      const res = await fetch(apiPath("/tags"))
       if (!res.ok) {
         throw new Error(await parseErrorMessage(res))
       }
       return res.json() as Promise<TagWithUsage[]>
     },
-    enabled: open,
+    enabled: open && libraryId != null,
   })
 
   const categoriesQuery = useQuery({
-    queryKey: ["tag-categories"],
+    queryKey: ["tag-categories", libraryId],
     queryFn: async (): Promise<TagCategory[]> => {
-      const res = await fetch("/api/tag-categories")
+      const res = await fetch(apiPath("/tag-categories"))
       if (!res.ok) {
         throw new Error(await parseErrorMessage(res))
       }
       return res.json() as Promise<TagCategory[]>
     },
-    enabled: open,
+    enabled: open && libraryId != null,
   })
 
   const patchTagsMutation = useMutation({

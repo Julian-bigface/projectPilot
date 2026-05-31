@@ -3,6 +3,7 @@ import { useMemo, useState, type ReactNode } from "react"
 import { useNavigate } from "react-router"
 
 import { ProjectDomainTagsDialog } from "@/components/project/project-domain-tags-dialog"
+import { ExternalLink } from "@/components/common/external-link"
 import { ProjectGithubMark } from "@/components/project/project-github-mark"
 import { ProjectInlineDescription } from "@/components/project/project-inline-description"
 import { ProjectRepoAvatar } from "@/components/project/project-repo-avatar"
@@ -119,6 +120,7 @@ export function ProjectLibraryPreviewPanel({ project: p }: ProjectLibraryPreview
     <>
           <ProjectDomainTagsDialog
             projectId={p.id}
+            projectLibraryId={p.project_library_id}
             open={tagDialogOpen}
             onOpenChange={setTagDialogOpen}
             initialTagIds={initialTagIds}
@@ -163,15 +165,13 @@ export function ProjectLibraryPreviewPanel({ project: p }: ProjectLibraryPreview
                       <p className="sr-only">资料库项目预览。仓库路径 {p.full_name}。</p>
                       <div className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-left text-xs leading-snug">
                         <ProjectGithubMark className="size-3.5 shrink-0 opacity-80" aria-hidden />
-                        <a
+                        <ExternalLink
                           href={p.github_url}
-                          target="_blank"
-                          rel="noreferrer"
                           className="text-primary min-w-0 truncate font-mono hover:underline"
                           onClick={(e) => e.stopPropagation()}
                         >
                           {p.full_name}
-                        </a>
+                        </ExternalLink>
                       </div>
                     </div>
                   </div>

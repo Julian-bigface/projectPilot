@@ -47,10 +47,11 @@ async def set_github_token_row(db: AsyncSession, token: str | None) -> None:
         row.value = token.strip()
 
 
-async def resolve_github_settings_for_read(db: AsyncSession) -> tuple[bool, str | None]:
+async def resolve_github_settings_for_read(db: AsyncSession) -> tuple[bool, str | None, int | None]:
     db_val = await get_github_token_row(db)
     env_val = settings.github_token
     eff = effective_github_token(db_val, env_val)
     has = eff is not None
     preview = token_preview_last_n(db_val) if db_val and db_val.strip() else None
-    return has, preview
+    length = len(db_val.strip()) if db_val and db_val.strip() else None
+    return has, preview, length

@@ -12,9 +12,17 @@ class TagCategory(Base):
     """用户自定义标签分类。"""
 
     __tablename__ = "tag_categories"
+    __table_args__ = (
+        UniqueConstraint("project_library_id", "name", name="uq_tag_category_library_name"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    project_library_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("project_libraries.id", ondelete="CASCADE"),
+        index=True,
+    )
+    name: Mapped[str] = mapped_column(String(128), index=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
@@ -25,9 +33,15 @@ class Tag(Base):
     """标签定义；category_id 为空表示「未分类」。"""
 
     __tablename__ = "tags"
+    __table_args__ = (UniqueConstraint("project_library_id", "name", name="uq_tag_library_name"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    name: Mapped[str] = mapped_column(String(256), unique=True, index=True)
+    project_library_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("project_libraries.id", ondelete="CASCADE"),
+        index=True,
+    )
+    name: Mapped[str] = mapped_column(String(256), index=True)
     category_id: Mapped[int | None] = mapped_column(
         Integer,
         ForeignKey("tag_categories.id", ondelete="SET NULL"),

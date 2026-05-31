@@ -1,13 +1,7 @@
-import { BookMarked, LayoutGrid, Library, List, MoreHorizontal } from "lucide-react"
-import { Link, NavLink, useLocation } from "react-router"
+import { LayoutGrid, Library, TrendingUp } from "lucide-react"
+import { NavLink, useLocation } from "react-router"
 
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+import { RailUserMenu } from "@/components/layout/rail-user-menu"
 import { cn } from "@/lib/utils"
 
 const railBtn =
@@ -26,43 +20,30 @@ export function FunctionRail() {
         PP
       </div>
 
-      <NavLink to="/library" end className={({ isActive }) => cn(railBtn, isActive && "active")} title="资料库">
+      <NavLink
+        to="/libraries"
+        className={({ isActive }) =>
+          cn(railBtn, (isActive || pathname.startsWith("/libraries")) && "active")
+        }
+        title="项目库"
+      >
         <Library className="size-[18px]" aria-hidden />
       </NavLink>
-      <NavLink to="/projects" end className={({ isActive }) => cn(railBtn, isActive && "active")} title="项目列表">
-        <List className="size-[18px]" aria-hidden />
+      <NavLink
+        to="/discovery"
+        className={({ isActive }) =>
+          cn(railBtn, (isActive || pathname.startsWith("/discovery")) && "active")
+        }
+        title="发现"
+      >
+        <TrendingUp className="size-[18px]" aria-hidden />
       </NavLink>
       <NavLink to="/projects/board" className={({ isActive }) => cn(railBtn, isActive && "active")} title="看板">
         <LayoutGrid className="size-[18px]" aria-hidden />
       </NavLink>
-      <NavLink
-        to="/projects/mock-shelf"
-        className={({ isActive }) => cn(railBtn, isActive && "active")}
-        title="模拟书架"
-      >
-        <BookMarked className="size-[18px]" aria-hidden />
-      </NavLink>
 
-      <div className="flex min-h-0 flex-1 flex-col justify-end pb-0.5">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={cn(railBtn, settingsActive && "active")}
-              aria-label="更多"
-              title="更多"
-            >
-              <MoreHorizontal className="size-[18px]" aria-hidden />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent side="right" align="end" className="min-w-[9rem]">
-            <DropdownMenuItem asChild>
-              <Link to="/settings">设置</Link>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+      <div className="mt-auto flex w-full shrink-0 flex-col px-1 pb-1">
+        <RailUserMenu settingsActive={settingsActive} />
       </div>
     </aside>
   )

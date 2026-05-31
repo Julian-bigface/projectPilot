@@ -5,6 +5,7 @@ import { useMemo, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { PopoverContent } from "@/components/ui/popover"
 import { useLibraryBrowseFilters } from "@/context/library-browse-filters"
+import { usePlApi } from "@/hooks/use-pl-api"
 import { collectTagIdsFromProjects } from "@/lib/library-project-filters"
 import { domainTagPillClass } from "@/lib/topic-pill-palette"
 import { cn } from "@/lib/utils"
@@ -50,11 +51,12 @@ export function LibraryTagFilterPanel({ scopeProjects }: LibraryTagFilterPanelPr
 
   const [activeGroup, setActiveGroup] = useState<TagGroupKey>("all")
   const [tagSearch, setTagSearch] = useState("")
+  const plApi = usePlApi()
 
   const tagsQuery = useQuery({
-    queryKey: ["tags"],
+    queryKey: ["tags", plApi.libraryId],
     queryFn: async (): Promise<TagWithUsage[]> => {
-      const res = await fetch("/api/tags")
+      const res = await fetch(plApi.path("/tags"))
       if (!res.ok) {
         throw new Error(await parseErrorMessage(res))
       }
@@ -63,9 +65,9 @@ export function LibraryTagFilterPanel({ scopeProjects }: LibraryTagFilterPanelPr
   })
 
   const categoriesQuery = useQuery({
-    queryKey: ["tag-categories"],
+    queryKey: ["tag-categories", plApi.libraryId],
     queryFn: async (): Promise<TagCategory[]> => {
-      const res = await fetch("/api/tag-categories")
+      const res = await fetch(plApi.path("/tag-categories"))
       if (!res.ok) {
         throw new Error(await parseErrorMessage(res))
       }

@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { usePlApi } from "@/hooks/use-pl-api"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
@@ -95,6 +96,7 @@ export function FolderDomainTagsDialog({
   onSaved,
 }: FolderDomainTagsDialogProps) {
   const queryClient = useQueryClient()
+  const plApi = usePlApi()
   const [draftTagIds, setDraftTagIds] = useState<number[]>([])
   const [tagsError, setTagsError] = useState<string | null>(null)
   const [tagPickerNav, setTagPickerNav] = useState<TagPickerNav>({ kind: "all" })
@@ -119,9 +121,9 @@ export function FolderDomainTagsDialog({
   }, [open])
 
   const allTagsQuery = useQuery({
-    queryKey: ["tags"],
+    queryKey: ["tags", plApi.libraryId],
     queryFn: async (): Promise<TagWithUsage[]> => {
-      const res = await fetch("/api/tags")
+      const res = await fetch(plApi.path("/tags"))
       if (!res.ok) {
         throw new Error(await parseErrorMessage(res))
       }
@@ -131,9 +133,9 @@ export function FolderDomainTagsDialog({
   })
 
   const categoriesQuery = useQuery({
-    queryKey: ["tag-categories"],
+    queryKey: ["tag-categories", plApi.libraryId],
     queryFn: async (): Promise<TagCategory[]> => {
-      const res = await fetch("/api/tag-categories")
+      const res = await fetch(plApi.path("/tag-categories"))
       if (!res.ok) {
         throw new Error(await parseErrorMessage(res))
       }
@@ -144,7 +146,7 @@ export function FolderDomainTagsDialog({
 
   const patchTagsMutation = useMutation({
     mutationFn: async (tag_ids: number[]) => {
-      const res = await fetch(`/api/folders/${folderId}`, {
+      const res = await fetch(plApi.path(`/folders/${folderId}`), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ tag_ids }),
@@ -158,7 +160,7 @@ export function FolderDomainTagsDialog({
       toast.success("文件夹标签已更新")
       onSaved?.(data)
       await queryClient.invalidateQueries({ queryKey: ["folders", "flat"] })
-      await queryClient.invalidateQueries({ queryKey: ["library", "tree"] })
+      await queryClient.invalidateQueries({ queryKey: ["library"] })
       await queryClient.invalidateQueries({ queryKey: ["tags"] })
       setTagsError(null)
       onOpenChange(false)

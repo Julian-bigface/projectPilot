@@ -37,10 +37,14 @@ router = APIRouter()
 _TAG_IDS_OMIT = object()
 
 
-async def _sync_project_tags(db: AsyncSession, project_id: int, tag_ids: list[int]) -> None:
+async def _sync_project_tags(
+    db: AsyncSession, project_id: int, tag_ids: list[int], library_id: int | None = None
+) -> None:
     ordered = list(dict.fromkeys(tag_ids))
     if ordered:
         stmt = select(Tag.id).where(Tag.id.in_(ordered))
+        if library_id is not None:
+            stmt = stmt.where(Tag.project_library_id == library_id)
         found = set((await db.execute(stmt)).scalars().all())
         if found != set(ordered):
             raise HTTPException(
@@ -52,11 +56,15 @@ async def _sync_project_tags(db: AsyncSession, project_id: int, tag_ids: list[in
         db.add(ProjectTag(project_id=project_id, tag_id=tid))
 
 
-async def _ensure_folder_exists(db: AsyncSession, folder_id: int | None) -> None:
+async def _ensure_folder_exists(
+    db: AsyncSession, folder_id: int | None, library_id: int | None = None
+) -> None:
     if folder_id is None:
         return
     folder = await db.get(Folder, folder_id)
     if folder is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="folder_id 不存在")
+    if library_id is not None and folder.project_library_id != library_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="folder_id 不存在")
 
 
@@ -128,11 +136,25 @@ async def preview_github_repo(
     return await preview_github_repository(db, github_url.strip())
 
 
+async def _default_project_library_id(db: AsyncSession) -> int:
+    from app.models.project_library import ProjectLibrary
+
+    row = await db.scalar(select(ProjectLibrary.id).order_by(ProjectLibrary.id.asc()).limit(1))
+    if row is None:
+        lib = ProjectLibrary(name="默认项目库", is_pinned=True)
+        db.add(lib)
+        await db.flush()
+        return int(lib.id)
+    return int(row)
+
+
 @router.post("", response_model=ProjectRead, status_code=status.HTTP_201_CREATED)
 async def create_project(body: ProjectCreate, db: AsyncSession = Depends(get_db)) -> ProjectRead:
-    await _ensure_folder_exists(db, body.folder_id)
+    library_id = await _default_project_library_id(db)
+    await _ensure_folder_exists(db, body.folder_id, library_id)
     now = _utcnow()
     project = Project(
+        project_library_id=library_id,
         github_url=body.github_url.strip(),
         name=body.name.strip(),
         full_name=body.full_name.strip(),
@@ -229,22 +251,27 @@ async def get_project(project_id: int, db: AsyncSession = Depends(get_db)) -> Pr
 
 @router.get("/{project_id}/readme", response_model=ProjectReadmeRead)
 async def get_project_readme(
-    project_id: int, db: AsyncSession = Depends(get_db)
+    project_id: int,
+    path: str | None = None,
+    fresh: bool = False,
+    db: AsyncSession = Depends(get_db),
 ) -> ProjectReadmeRead:
     project = await db.get(Project, project_id)
     if project is None or project.deleted_at is not None:
         raise _not_found_deleted()
-    return await fetch_project_readme(db, project)
+    return await fetch_project_readme(db, project, path=path, fresh=fresh)
 
 
 @router.get("/{project_id}/releases", response_model=ProjectReleasesRead)
 async def get_project_releases(
-    project_id: int, db: AsyncSession = Depends(get_db)
+    project_id: int,
+    fresh: bool = False,
+    db: AsyncSession = Depends(get_db),
 ) -> ProjectReleasesRead:
     project = await db.get(Project, project_id)
     if project is None or project.deleted_at is not None:
         raise _not_found_deleted()
-    return await fetch_project_releases(db, project)
+    return await fetch_project_releases(db, project, fresh=fresh)
 
 
 @router.get("/{project_id}/readme/blocks", response_model=ReadmeBlocksRead)
@@ -334,7 +361,7 @@ async def patch_project(
     tag_ids_update = payload.pop("tag_ids", _TAG_IDS_OMIT)
 
     if "folder_id" in payload:
-        await _ensure_folder_exists(db, payload["folder_id"])
+        await _ensure_folder_exists(db, payload["folder_id"], project.project_library_id)
 
     if tag_ids_update is not _TAG_IDS_OMIT:
         if not isinstance(tag_ids_update, list):
@@ -342,7 +369,12 @@ async def patch_project(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="tag_ids 须为整数数组",
             )
-        await _sync_project_tags(db, project_id, [int(x) for x in tag_ids_update])
+        await _sync_project_tags(
+            db,
+            project_id,
+            [int(x) for x in tag_ids_update],
+            project.project_library_id,
+        )
 
     if payload:
         partial = ProjectUpdate(**payload)

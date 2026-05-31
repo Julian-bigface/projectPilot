@@ -12,6 +12,7 @@ import { ProjectNotesTab } from "@/components/project/detail/project-notes-tab"
 import { ProjectReadmeTab } from "@/components/project/detail/project-readme-tab"
 import { ProjectReleasesTab } from "@/components/project/detail/project-releases-tab"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ProjectGithubCacheProvider } from "@/context/project-github-cache"
 import { parseProjectDetailTab, type ProjectDetailTab } from "@/types/project-github"
 import type { Project } from "@/types/project"
 
@@ -49,33 +50,31 @@ export function ProjectDetailTabs({ project }: ProjectDetailTabsProps) {
   )
 
   return (
-    <Tabs value={tab} onValueChange={setTab} className="w-full">
-      <div className={projectDetailTabsBarClass}>
-        <TabsList className={projectDetailTabsListClass}>
-          {(Object.keys(TAB_LABELS) as ProjectDetailTab[]).map((key) => (
-            <TabsTrigger key={key} value={key} className={projectDetailTabTriggerClass}>
-              {TAB_LABELS[key]}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-        <ProjectDetailMoreInfo project={project} />
-      </div>
+    <ProjectGithubCacheProvider projectId={project.id} activeTab={tab}>
+      <Tabs value={tab} onValueChange={setTab} className="w-full">
+        <div className={projectDetailTabsBarClass}>
+          <TabsList className={projectDetailTabsListClass}>
+            {(Object.keys(TAB_LABELS) as ProjectDetailTab[]).map((key) => (
+              <TabsTrigger key={key} value={key} className={projectDetailTabTriggerClass}>
+                {TAB_LABELS[key]}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          <ProjectDetailMoreInfo project={project} />
+        </div>
 
-      <TabsContent value="readme" className={projectDetailTabContentClass}>
-        <ProjectReadmeTab project={project} enabled={tab === "readme"} />
-      </TabsContent>
+        <TabsContent value="readme" className={projectDetailTabContentClass}>
+          <ProjectReadmeTab project={project} enabled={tab === "readme"} />
+        </TabsContent>
 
-      <TabsContent value="release" className={projectDetailTabContentClass}>
-        <ProjectReleasesTab
-          projectId={project.id}
-          githubUrl={project.github_url}
-          enabled={tab === "release"}
-        />
-      </TabsContent>
+        <TabsContent value="release" className={projectDetailTabContentClass}>
+          <ProjectReleasesTab project={project} enabled={tab === "release"} />
+        </TabsContent>
 
-      <TabsContent value="notes" className={projectDetailTabContentClass}>
-        <ProjectNotesTab projectId={project.id} initialNotes={project.notes} />
-      </TabsContent>
-    </Tabs>
+        <TabsContent value="notes" className={projectDetailTabContentClass}>
+          <ProjectNotesTab projectId={project.id} initialNotes={project.notes} />
+        </TabsContent>
+      </Tabs>
+    </ProjectGithubCacheProvider>
   )
 }

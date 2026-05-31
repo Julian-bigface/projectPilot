@@ -28,6 +28,7 @@ import {
   parseFolderSortId,
   parseProjectDragId,
 } from "@/components/layout/library-dnd-ids"
+import { usePlApi } from "@/hooks/use-pl-api"
 import { findFolderNode } from "@/lib/library-tree"
 import type { FolderTreeNode as FolderNodeModel } from "@/types/library"
 import type { LibraryTreeResponse } from "@/types/library"
@@ -52,8 +53,8 @@ async function parseErrorMessage(res: Response): Promise<string> {
 }
 
 async function invalidateLibrary(queryClient: ReturnType<typeof useQueryClient>) {
-  await queryClient.invalidateQueries({ queryKey: ["library", "tree"] })
-  await queryClient.invalidateQueries({ queryKey: ["folders", "flat"] })
+  await queryClient.invalidateQueries({ queryKey: ["library"] })
+  await queryClient.invalidateQueries({ queryKey: ["folders"] })
   await queryClient.invalidateQueries()
 }
 
@@ -157,6 +158,7 @@ type LibraryDndProviderProps = {
 
 export function LibraryDndProvider({ children }: LibraryDndProviderProps) {
   const queryClient = useQueryClient()
+  const plApi = usePlApi()
   const [overlayLabel, setOverlayLabel] = useState<string | null>(null)
   /** 按住 Alt 松开时：同级文件夹拖向另一行视为「归入」而非排序 */
   const folderNestAltRef = useRef(false)
@@ -181,9 +183,9 @@ export function LibraryDndProvider({ children }: LibraryDndProviderProps) {
   }, [])
 
   const treeQuery = useQuery({
-    queryKey: ["library", "tree"],
+    queryKey: ["library", plApi.libraryId, "tree"],
     queryFn: async (): Promise<LibraryTreeResponse> => {
-      const res = await fetch("/api/library/tree")
+      const res = await fetch(plApi.path("/library/tree"))
       if (!res.ok) {
         throw new Error(await parseErrorMessage(res))
       }
@@ -202,7 +204,7 @@ export function LibraryDndProvider({ children }: LibraryDndProviderProps) {
 
   const reorderMutation = useMutation({
     mutationFn: async (body: { parent_id: number | null; ordered_ids: number[] }) => {
-      const res = await fetch("/api/folders/reorder", {
+      const res = await fetch(plApi.path("/folders/reorder"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -219,7 +221,7 @@ export function LibraryDndProvider({ children }: LibraryDndProviderProps) {
 
   const patchFolderMutation = useMutation({
     mutationFn: async ({ id, body }: { id: number; body: Record<string, unknown> }) => {
-      const res = await fetch(`/api/folders/${id}`, {
+      const res = await fetch(plApi.path(`/folders/${id}`), {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { useLibrarySelection } from "@/context/library-selection"
+import { usePlApi } from "@/hooks/use-pl-api"
 import { getLibraryScopeDisplayLabel } from "@/lib/library-scope-label"
 import type { LibraryTreeResponse } from "@/types/library"
 
@@ -30,11 +31,12 @@ export function LibraryPanelChrome() {
     goLibraryBack,
     goLibraryForward,
   } = useLibrarySelection()
+  const plApi = usePlApi()
 
   const treeQuery = useQuery({
-    queryKey: ["library", "tree"],
+    queryKey: ["library", plApi.libraryId, "tree"],
     queryFn: async (): Promise<LibraryTreeResponse> => {
-      const res = await fetch("/api/library/tree")
+      const res = await fetch(plApi.path("/library/tree"))
       if (!res.ok) {
         throw new Error(await parseErrorMessage(res))
       }
@@ -45,7 +47,7 @@ export function LibraryPanelChrome() {
   const label = getLibraryScopeDisplayLabel(libraryScope, treeQuery.data?.folders)
 
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-2">
+    <div className="flex min-w-0 items-center gap-2">
       <Button
         type="button"
         variant="ghost"

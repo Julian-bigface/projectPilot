@@ -238,14 +238,15 @@ async def test_post_translate_description(client: AsyncClient, monkeypatch: pyte
 async def test_post_translate_readme(client: AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
     project_id = await _create_project(client)
 
-    async def _fake_fetch_readme(_db, _project):
-        from app.schemas.project_github import ProjectReadmeRead
-
-        return ProjectReadmeRead(content="# Title\n\nBody text")
+    async def _fake_ensure_readme(_db, _project):
+        return "# Title\n\nBody text"
 
     mock = _MockProvider(prefix="R:")
 
-    monkeypatch.setattr("app.services.project_translate.fetch_project_readme", _fake_fetch_readme)
+    monkeypatch.setattr(
+        "app.services.project_translate.ensure_default_readme_content",
+        _fake_ensure_readme,
+    )
     monkeypatch.setattr("app.services.project_translate.get_translation_provider", lambda _n: mock)
 
     res = await client.post(
@@ -257,3 +258,28 @@ async def test_post_translate_readme(client: AsyncClient, monkeypatch: pytest.Mo
     assert body["readme_translated"] is not None
     assert "R:# Title" in body["readme_translated"]
     assert "Body text" in body["readme_translated"]
+
+
+@pytest.mark.asyncio
+async def test_post_translate_text_ephemeral(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    mock = _MockProvider(prefix="ZH:")
+
+    monkeypatch.setattr(
+        "app.services.translation_ephemeral.get_translation_provider",
+        lambda _n: mock,
+    )
+
+    res = await client.post(
+        "/translation/translate-text",
+        json={"content": "Hello world"},
+    )
+    assert res.status_code == 200
+    assert res.json()["translated"] == "ZH:Hello world"
+
+
+@pytest.mark.asyncio
+async def test_post_translate_text_empty_rejected(client: AsyncClient) -> None:
+    res = await client.post("/translation/translate-text", json={"content": "   "})
+    assert res.status_code == 422

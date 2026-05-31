@@ -1,80 +1,229 @@
-import { useQuery } from "@tanstack/react-query"
-import { ChevronDown, ExternalLink, Loader2, Tag } from "lucide-react"
+import { ChevronDown, Download, ExternalLink as ExternalLinkIcon, Loader2, RefreshCw } from "lucide-react"
 import { useState } from "react"
-import { Link } from "react-router"
 
+import { ExternalLink } from "@/components/common/external-link"
 import { MarkdownContent } from "@/components/project/detail/markdown-content"
-import { formatLocalDateTime } from "@/components/project/detail/project-detail-shared"
+import { ProjectRepoAvatar } from "@/components/project/project-repo-avatar"
+import { GithubSettingsButton } from "@/components/common/github-settings-link"
 import { Button } from "@/components/ui/button"
-import { parseApiErrorMessage } from "@/lib/api-error"
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { useProjectReleasesStatus } from "@/context/project-github-cache"
+import { formatFileSize } from "@/lib/format-file-size"
+import { formatGithubPushedRelative } from "@/lib/github-relative-time"
+import { parseGithubOwner } from "@/lib/project-display"
 import { cn } from "@/lib/utils"
-import type { ProjectRelease, ProjectReleasesResponse } from "@/types/project-github"
+import type { Project } from "@/types/project"
+import type { ProjectRelease, ProjectReleaseAsset } from "@/types/project-github"
 
 export type ProjectReleasesTabProps = {
-  projectId: number
-  githubUrl: string
+  project: Project
   enabled: boolean
 }
 
-function ReleaseCard({ release }: { release: ProjectRelease }) {
+/** 附件列：默认最大 26rem；缩窄时优先收缩（min-w-0 允许低于内容宽度） */
+const releaseAssetsColumnClass =
+  "ml-auto min-w-[5.25rem] max-w-[min(26rem,90vw)] shrink-[999] basis-[min(26rem,90vw)] overflow-hidden"
+
+const releaseAssetsTriggerClass =
+  "h-8 w-full min-w-0 max-w-full justify-between gap-2 px-3 text-xs font-normal shadow-none overflow-hidden"
+
+const releaseAssetsEmptyTriggerClass =
+  "bg-muted/40 text-muted-foreground justify-center gap-1.5"
+
+/** 发布时间列固定宽度 */
+const releaseTimeClass = "text-muted-foreground w-20 shrink-0 truncate text-right text-xs"
+
+function ReleaseAssetsPopover({ assets }: { assets: ProjectReleaseAsset[] }) {
+  const count = assets.length
+
+  if (count === 0) {
+    return (
+      <div className={releaseAssetsColumnClass}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled
+          className={cn(releaseAssetsTriggerClass, releaseAssetsEmptyTriggerClass)}
+        >
+          <Download className="size-3.5 shrink-0" aria-hidden />
+          <span className="truncate">无附件</span>
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <div className={releaseAssetsColumnClass}>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className={cn(
+              releaseAssetsTriggerClass,
+              "border-sky-200 bg-sky-50 text-sky-900 hover:bg-sky-100 dark:border-sky-900 dark:bg-sky-950/50 dark:text-sky-100 dark:hover:bg-sky-950"
+            )}
+          >
+            <span className="flex min-w-0 items-center gap-1.5">
+              <Download className="size-3.5 shrink-0" aria-hidden />
+              <span className="truncate">{count} 个文件</span>
+            </span>
+            <ChevronDown className="size-3.5 shrink-0 opacity-70" aria-hidden />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          align="start"
+          sideOffset={0}
+          className="w-[var(--radix-popover-trigger-width)] p-0"
+        >
+        <ul className="max-h-72 overflow-y-auto py-1">
+          {assets.map((asset) => (
+            <li
+              key={asset.browser_download_url}
+              className="hover:bg-muted/50 flex items-center gap-2 px-3 py-2"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium" title={asset.name}>
+                  {asset.name}
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  {formatFileSize(asset.size)}
+                  {" · "}
+                  {formatGithubPushedRelative(asset.updated_at)}
+                  {" · "}
+                  {asset.download_count} 次下载
+                </p>
+              </div>
+              <Button variant="ghost" size="icon" className="size-8 shrink-0" asChild>
+                <ExternalLink
+                  href={asset.browser_download_url}
+                  download
+                  title={`下载 ${asset.name}`}
+                >
+                  <Download className="size-4" aria-hidden />
+                  <span className="sr-only">下载 {asset.name}</span>
+                </ExternalLink>
+              </Button>
+            </li>
+          ))}
+        </ul>
+      </PopoverContent>
+    </Popover>
+    </div>
+  )
+}
+
+function ReleaseRow({
+  release,
+  project,
+}: {
+  release: ProjectRelease
+  project: Project
+}) {
   const [expanded, setExpanded] = useState(false)
+  const owner = parseGithubOwner(project.full_name)
   const title = release.name?.trim() || release.tag_name
   const body = release.body?.trim()
-  const showTag = release.tag_name.trim() !== title.trim()
+  const assets = release.assets ?? []
 
   const titleNode = release.html_url ? (
-    <a
+    <ExternalLink
       href={release.html_url}
-      target="_blank"
-      rel="noreferrer"
-      className="text-primary min-w-0 text-base font-semibold tracking-tight hover:underline"
+      className="text-foreground min-w-0 truncate text-sm font-medium hover:underline"
+      title={title}
     >
       {title}
-    </a>
+    </ExternalLink>
   ) : (
-    <h3 className="min-w-0 text-base font-semibold tracking-tight">{title}</h3>
+    <span className="min-w-0 truncate text-sm font-medium" title={title}>
+      {title}
+    </span>
   )
 
   return (
-    <article className="border-border bg-card/50 rounded-xl border p-4 sm:p-5">
-      <div className="min-w-0">
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-          <Tag className="text-muted-foreground size-4 shrink-0" aria-hidden />
-          {titleNode}
-          {showTag ? (
-            <span className="text-muted-foreground shrink-0 font-mono text-xs">{release.tag_name}</span>
-          ) : null}
-          {release.prerelease ? (
-            <span className="border-border bg-muted shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide">
-              Pre-release
-            </span>
-          ) : null}
-          {release.draft ? (
-            <span className="border-border bg-muted shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide">
-              Draft
-            </span>
+    <article className="group/release border-border bg-card/50 relative rounded-xl border">
+      <div className="flex min-w-0 flex-nowrap items-center gap-2 overflow-hidden px-3 py-2.5 sm:gap-3 sm:px-4 sm:py-3">
+        <div className="flex min-w-0 shrink-0 items-center gap-6 overflow-hidden sm:gap-8">
+          <div className="flex shrink-0 items-center gap-2">
+            <ProjectRepoAvatar
+              owner={owner}
+              displayName={project.name}
+              fullName={project.full_name}
+              size="sm"
+              className="shrink-0"
+            />
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold">{project.name}</p>
+              <p className="text-muted-foreground truncate font-mono text-xs">{release.tag_name}</p>
+            </div>
+          </div>
+
+          <div className="flex min-w-0 items-center gap-2 overflow-hidden">
+            {titleNode}
+            {release.prerelease ? (
+              <span className="border-border bg-muted shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide">
+                Pre
+              </span>
+            ) : null}
+            {release.draft ? (
+              <span className="border-border bg-muted shrink-0 rounded-md border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide">
+                Draft
+              </span>
+            ) : null}
+          </div>
+        </div>
+
+        <ReleaseAssetsPopover assets={assets} />
+
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <span className={releaseTimeClass} title={release.published_at ?? undefined}>
+            {formatGithubPushedRelative(release.published_at)}
+          </span>
+          {release.html_url ? (
+            <Button
+              variant="outline"
+              size="icon"
+              className="size-8 shrink-0 shadow-none"
+              asChild
+            >
+              <ExternalLink href={release.html_url} title="在 GitHub 打开">
+                <ExternalLinkIcon className="size-4" aria-hidden />
+                <span className="sr-only">在 GitHub 打开</span>
+              </ExternalLink>
+            </Button>
           ) : null}
         </div>
-        {release.published_at ? (
-          <p className="text-muted-foreground mt-1 text-xs">
-            {formatLocalDateTime(release.published_at)}
-          </p>
-        ) : null}
       </div>
+
       {body ? (
-        <div className="mt-4">
+        <div className={cn("relative", expanded && "border-border border-t")}>
           <button
             type="button"
-            className="text-muted-foreground hover:text-foreground flex items-center gap-1 text-xs font-medium"
             aria-expanded={expanded}
+            aria-label={expanded ? "收起说明" : "展开说明"}
+            title={expanded ? "收起说明" : "展开说明"}
             onClick={() => setExpanded((v) => !v)}
+            className={cn(
+              "border-border bg-background hover:bg-muted absolute top-0 left-1/2 z-10 flex h-3.5 w-64 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border p-0 shadow-sm transition-opacity duration-150",
+              "opacity-0 group-hover/release:opacity-100 focus-visible:opacity-100"
+            )}
           >
-            <ChevronDown className={cn("size-3.5 transition-transform", expanded && "rotate-180")} />
-            {expanded ? "收起说明" : "展开说明"}
+            <ChevronDown
+              className={cn("size-2.5 transition-transform", expanded && "rotate-180")}
+              aria-hidden
+            />
           </button>
           {expanded ? (
-            <div className="border-border mt-3 border-t pt-3">
-              <MarkdownContent content={body} />
+            <div className="px-3 pt-4 pb-3 sm:px-4">
+              <MarkdownContent content={body} githubUrl={project.github_url} />
             </div>
           ) : null}
         </div>
@@ -83,19 +232,13 @@ function ReleaseCard({ release }: { release: ProjectRelease }) {
   )
 }
 
-export function ProjectReleasesTab({ projectId, githubUrl, enabled }: ProjectReleasesTabProps) {
-  const query = useQuery({
-    queryKey: ["projects", projectId, "releases"],
-    queryFn: async (): Promise<ProjectReleasesResponse> => {
-      const res = await fetch(`/api/projects/${projectId}/releases`)
-      if (!res.ok) {
-        throw new Error(await parseApiErrorMessage(res))
-      }
-      return res.json() as Promise<ProjectReleasesResponse>
-    },
-    enabled,
-    staleTime: 5 * 60 * 1000,
-  })
+export function ProjectReleasesTab({ project, enabled }: ProjectReleasesTabProps) {
+  const { releasesQuery, syncState, syncFromGithub } = useProjectReleasesStatus()
+  const query = releasesQuery
+
+  if (!enabled && query.isLoading) {
+    return null
+  }
 
   if (query.isLoading) {
     return (
@@ -114,19 +257,19 @@ export function ProjectReleasesTab({ projectId, githubUrl, enabled }: ProjectRel
         <p className="text-destructive text-sm">{msg}</p>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
           {is424 ? (
-            <Button variant="outline" size="sm" asChild>
-              <Link to="/settings/github">配置 GitHub Token</Link>
-            </Button>
+            <GithubSettingsButton variant="outline" size="sm">
+              配置 GitHub Token
+            </GithubSettingsButton>
           ) : (
             <Button variant="outline" size="sm" onClick={() => void query.refetch()}>
               重试
             </Button>
           )}
           <Button variant="ghost" size="sm" asChild>
-            <a href={`${githubUrl.replace(/\/$/, "")}/releases`} target="_blank" rel="noreferrer">
-              <ExternalLink className="size-4" aria-hidden />
+            <ExternalLink href={`${project.github_url.replace(/\/$/, "")}/releases`}>
+              <ExternalLinkIcon className="size-4" aria-hidden />
               在 GitHub 查看
-            </a>
+            </ExternalLink>
           </Button>
         </div>
       </div>
@@ -134,19 +277,39 @@ export function ProjectReleasesTab({ projectId, githubUrl, enabled }: ProjectRel
   }
 
   const items = query.data?.items ?? []
-  if (items.length === 0) {
-    return (
+  const listBody =
+    items.length === 0 ? (
       <p className="text-muted-foreground border-border rounded-xl border border-dashed px-6 py-10 text-center text-sm">
         该仓库暂无 Release。
       </p>
+    ) : (
+      <div className="flex flex-col gap-2">
+        {items.map((release) => (
+          <ReleaseRow
+            key={release.tag_name + (release.published_at ?? "")}
+            release={release}
+            project={project}
+          />
+        ))}
+      </div>
     )
-  }
 
   return (
-    <div className="flex flex-col gap-4">
-      {items.map((release) => (
-        <ReleaseCard key={release.tag_name + (release.published_at ?? "")} release={release} />
-      ))}
-    </div>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <div className="outline-none">{listBody}</div>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-52">
+        <ContextMenuItem
+          disabled={query.isLoading || syncState === "syncing"}
+          onSelect={() => void syncFromGithub({ manual: true })}
+        >
+          <span className="flex items-center gap-2">
+            <RefreshCw className="size-3.5" aria-hidden />
+            从 GitHub 刷新
+          </span>
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }
