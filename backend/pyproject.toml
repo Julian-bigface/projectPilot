@@ -1,6 +1,6 @@
 [project]
 name = "project-pilot-api"
-version = "0.1.0"
+version = "0.1.2"
 description = "Project Pilot — FastAPI backend"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -12,6 +12,7 @@ dependencies = [
   "pydantic-settings>=2.6.0",
   "httpx>=0.28.0",
   "deep-translator>=1.11.0",
+  "python-multipart>=0.0.9",
 ]
 
 [project.optional-dependencies]

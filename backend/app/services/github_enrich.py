@@ -90,7 +90,9 @@ async def try_enrich_project_from_github(
     else:
         project.topics = []
     project.updated_at = _utcnow()
-    await sync_project_tags_from_github_topics(db, project.id, project.topics)
+    await sync_project_tags_from_github_topics(
+        db, project.id, project.topics, library_id=project.project_library_id
+    )
     await db.commit()
     await db.refresh(project)
     return True

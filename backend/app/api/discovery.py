@@ -21,6 +21,7 @@ from app.services.discovery_repo_content import (
     fetch_discovery_repo_readme,
     fetch_discovery_repo_releases,
 )
+from app.services.discovery_cache import MOST_POPULAR_FEED_TTL
 from app.services.discovery_search import (
     build_hot_release_query,
     build_most_popular_query,
@@ -185,6 +186,7 @@ async def discovery_most_popular(
             per_page=per_page,
             token=token,
             fresh=fresh,
+            ttl=MOST_POPULAR_FEED_TTL,
         )
     except RuntimeError as err:
         raise HTTPException(

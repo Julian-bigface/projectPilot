@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Project Pilot API",
-    "version": "0.1.0"
+    "version": "0.1.2"
   },
   "paths": {
     "/api/projects": {
@@ -196,6 +196,48 @@
         }
       }
     },
+    "/api/projects/readme-image-proxy": {
+      "get": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Readme Image Proxy",
+        "description": "为 README 封面截图代理外链图片，避免浏览器 canvas 跨域污染。",
+        "operationId": "readme_image_proxy_api_projects_readme_image_proxy_get",
+        "parameters": [
+          {
+            "name": "url",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "title": "Url"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/projects/{project_id}/refresh-github": {
       "post": {
         "tags": [
@@ -284,6 +326,42 @@
                 }
               }
             }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/projects/{project_id}/collect": {
+      "delete": {
+        "tags": [
+          "projects"
+        ],
+        "summary": "Remove Project Collect",
+        "description": "发现中心取消收藏：直接移除项目记录，不进入回收站。",
+        "operationId": "remove_project_collect_api_projects__project_id__collect_delete",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
           },
           "422": {
             "description": "Validation Error",
@@ -1763,6 +1841,164 @@
         }
       }
     },
+    "/api/project-libraries/{library_id}/tags/suggest-categories": {
+      "post": {
+        "tags": [
+          "project-libraries",
+          "tags"
+        ],
+        "summary": "Post Suggest Tag Categories",
+        "operationId": "post_suggest_tag_categories_api_project_libraries__library_id__tags_suggest_categories_post",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagCategorySuggestRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagCategorySuggestResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}/tags/suggest-categories/stream": {
+      "post": {
+        "tags": [
+          "project-libraries",
+          "tags"
+        ],
+        "summary": "Post Suggest Tag Categories Stream",
+        "description": "NDJSON 流式返回：每完成一批 LLM 请求即推送 proposals。",
+        "operationId": "post_suggest_tag_categories_stream_api_project_libraries__library_id__tags_suggest_categories_stream_post",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagCategorySuggestRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}/tags/apply-category-suggestions": {
+      "post": {
+        "tags": [
+          "project-libraries",
+          "tags"
+        ],
+        "summary": "Post Apply Tag Category Suggestions",
+        "operationId": "post_apply_tag_category_suggestions_api_project_libraries__library_id__tags_apply_category_suggestions_post",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagCategoryApplyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagCategoryApplyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/project-libraries/{library_id}/tags/{tag_id}": {
       "patch": {
         "tags": [
@@ -2238,6 +2474,1524 @@
         }
       }
     },
+    "/api/project-libraries/{library_id}/content-factory/drafts": {
+      "get": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "List Content Factory Drafts",
+        "operationId": "list_content_factory_drafts_api_project_libraries__library_id__content_factory_drafts_get",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ContentFactoryDraftRead"
+                  },
+                  "title": "Response List Content Factory Drafts Api Project Libraries  Library Id  Content Factory Drafts Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Create Content Factory Draft",
+        "operationId": "create_content_factory_draft_api_project_libraries__library_id__content_factory_drafts_post",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentFactoryDraftCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentFactoryDraftRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}/content-factory/drafts/{draft_id}": {
+      "get": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Get Content Factory Draft",
+        "operationId": "get_content_factory_draft_api_project_libraries__library_id__content_factory_drafts__draft_id__get",
+        "parameters": [
+          {
+            "name": "draft_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Draft Id"
+            }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentFactoryDraftRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Patch Content Factory Draft",
+        "operationId": "patch_content_factory_draft_api_project_libraries__library_id__content_factory_drafts__draft_id__patch",
+        "parameters": [
+          {
+            "name": "draft_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Draft Id"
+            }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContentFactoryDraftUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContentFactoryDraftRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Delete Content Factory Draft",
+        "operationId": "delete_content_factory_draft_api_project_libraries__library_id__content_factory_drafts__draft_id__delete",
+        "parameters": [
+          {
+            "name": "draft_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Draft Id"
+            }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}/content-factory/drafts/{draft_id}/generate-copy": {
+      "post": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Post Generate Copy",
+        "operationId": "post_generate_copy_api_project_libraries__library_id__content_factory_drafts__draft_id__generate_copy_post",
+        "parameters": [
+          {
+            "name": "draft_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Draft Id"
+            }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateCopyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GenerateCopyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}/content-factory/drafts/{draft_id}/optimize-selection": {
+      "post": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Post Optimize Selection",
+        "operationId": "post_optimize_selection_api_project_libraries__library_id__content_factory_drafts__draft_id__optimize_selection_post",
+        "parameters": [
+          {
+            "name": "draft_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Draft Id"
+            }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OptimizeSelectionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OptimizeSelectionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}/content-factory/cover-styles": {
+      "get": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "List Cover Styles",
+        "operationId": "list_cover_styles_api_project_libraries__library_id__content_factory_cover_styles_get",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          },
+          {
+            "name": "include_hidden",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Hidden"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoverStyleListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Post Cover Style",
+        "operationId": "post_cover_style_api_project_libraries__library_id__content_factory_cover_styles_post",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CoverStyleWrite"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoverStyleRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}/content-factory/cover-styles/reference-upload": {
+      "post": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Post Cover Style Reference Upload",
+        "operationId": "post_cover_style_reference_upload_api_project_libraries__library_id__content_factory_cover_styles_reference_upload_post",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_post_cover_style_reference_upload_api_project_libraries__library_id__content_factory_cover_styles_reference_upload_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoverStyleReferenceUploadResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}/content-factory/cover-styles/references/{reference_id}": {
+      "get": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Get Cover Style Reference Upload",
+        "operationId": "get_cover_style_reference_upload_api_project_libraries__library_id__content_factory_cover_styles_references__reference_id__get",
+        "parameters": [
+          {
+            "name": "reference_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Reference Id"
+            }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}/content-factory/cover-styles/generate/stream": {
+      "post": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Post Generate Cover Style Stream",
+        "description": "NDJSON 流式解析封面风格（delta 为 LLM 文本增量，done 含完整 payload）。",
+        "operationId": "post_generate_cover_style_stream_api_project_libraries__library_id__content_factory_cover_styles_generate_stream_post",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CoverStyleGenerateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}/content-factory/cover-styles/refine-prompt-template": {
+      "post": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Post Refine Cover Style Prompt Template",
+        "operationId": "post_refine_cover_style_prompt_template_api_project_libraries__library_id__content_factory_cover_styles_refine_prompt_template_post",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CoverStyleRefinePromptTemplateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoverStyleRefinePromptTemplateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}/content-factory/cover-styles/refine": {
+      "post": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Post Refine Cover Style",
+        "operationId": "post_refine_cover_style_api_project_libraries__library_id__content_factory_cover_styles_refine_post",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CoverStyleRefineRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoverStyleRefineResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}/content-factory/cover-styles/save-parsed": {
+      "post": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Post Save Parsed Cover Style",
+        "operationId": "post_save_parsed_cover_style_api_project_libraries__library_id__content_factory_cover_styles_save_parsed_post",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CoverStyleSaveParsedRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoverStyleRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}/content-factory/cover-styles/generate": {
+      "post": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Post Generate Cover Style",
+        "operationId": "post_generate_cover_style_api_project_libraries__library_id__content_factory_cover_styles_generate_post",
+        "parameters": [
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CoverStyleGenerateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoverStyleRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}/content-factory/cover-styles/{style_id}": {
+      "get": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Get Cover Style",
+        "operationId": "get_cover_style_api_project_libraries__library_id__content_factory_cover_styles__style_id__get",
+        "parameters": [
+          {
+            "name": "style_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Style Id"
+            }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoverStyleRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Patch Cover Style",
+        "operationId": "patch_cover_style_api_project_libraries__library_id__content_factory_cover_styles__style_id__patch",
+        "parameters": [
+          {
+            "name": "style_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Style Id"
+            }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CoverStylePatch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoverStyleRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Delete Cover Style",
+        "operationId": "delete_cover_style_api_project_libraries__library_id__content_factory_cover_styles__style_id__delete",
+        "parameters": [
+          {
+            "name": "style_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Style Id"
+            }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}/content-factory/cover-styles/{style_id}/preview": {
+      "post": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Post Cover Style Preview",
+        "operationId": "post_cover_style_preview_api_project_libraries__library_id__content_factory_cover_styles__style_id__preview_post",
+        "parameters": [
+          {
+            "name": "style_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Style Id"
+            }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CoverStylePreviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoverStylePreviewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}/content-factory/cover-styles/{style_id}/fork": {
+      "post": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Post Fork Cover Style",
+        "operationId": "post_fork_cover_style_api_project_libraries__library_id__content_factory_cover_styles__style_id__fork_post",
+        "parameters": [
+          {
+            "name": "style_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Style Id"
+            }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CoverStyleForkRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoverStyleRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}/content-factory/cover-styles/{style_id}/example": {
+      "get": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Get Cover Style Example",
+        "operationId": "get_cover_style_example_api_project_libraries__library_id__content_factory_cover_styles__style_id__example_get",
+        "parameters": [
+          {
+            "name": "style_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Style Id"
+            }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}/content-factory/cover-styles/{style_id}/reference": {
+      "get": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Get Cover Style Reference",
+        "operationId": "get_cover_style_reference_api_project_libraries__library_id__content_factory_cover_styles__style_id__reference_get",
+        "parameters": [
+          {
+            "name": "style_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Style Id"
+            }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}/content-factory/drafts/{draft_id}/generate-ai-cover": {
+      "post": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Post Generate Ai Cover",
+        "operationId": "post_generate_ai_cover_api_project_libraries__library_id__content_factory_drafts__draft_id__generate_ai_cover_post",
+        "parameters": [
+          {
+            "name": "draft_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Draft Id"
+            }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateAiCoverRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadCoverResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}/content-factory/drafts/{draft_id}/upload-cover": {
+      "post": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Post Upload Cover",
+        "operationId": "post_upload_cover_api_project_libraries__library_id__content_factory_drafts__draft_id__upload_cover_post",
+        "parameters": [
+          {
+            "name": "draft_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Draft Id"
+            }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_post_upload_cover_api_project_libraries__library_id__content_factory_drafts__draft_id__upload_cover_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadCoverResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}/content-factory/drafts/{draft_id}/cover": {
+      "get": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Get Content Factory Cover",
+        "operationId": "get_content_factory_cover_api_project_libraries__library_id__content_factory_drafts__draft_id__cover_get",
+        "parameters": [
+          {
+            "name": "draft_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Draft Id"
+            }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          },
+          {
+            "name": "style_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Style Id"
+            }
+          },
+          {
+            "name": "size_preset_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Size Preset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}/content-factory/drafts/{draft_id}/reveal-cover": {
+      "post": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Post Reveal Content Factory Cover",
+        "description": "在系统文件管理器中定位封面 PNG（选中文件）。",
+        "operationId": "post_reveal_content_factory_cover_api_project_libraries__library_id__content_factory_drafts__draft_id__reveal_cover_post",
+        "parameters": [
+          {
+            "name": "draft_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Draft Id"
+            }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          },
+          {
+            "name": "style_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Style Id"
+            }
+          },
+          {
+            "name": "size_preset_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Size Preset Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RevealCoverResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/project-libraries": {
       "get": {
         "tags": [
@@ -2637,6 +4391,191 @@
         }
       }
     },
+    "/api/settings/ai/config": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Get Ai Config",
+        "operationId": "get_ai_config_api_settings_ai_config_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiConfigRead"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Put Ai Config",
+        "operationId": "put_ai_config_api_settings_ai_config_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiConfigUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiConfigRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/ai": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Get Ai Settings",
+        "operationId": "get_ai_settings_api_settings_ai_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiSettingsRead"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Put Ai Settings",
+        "operationId": "put_ai_settings_api_settings_ai_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiSettingsUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiSettingsRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/ai/test": {
+      "post": {
+        "tags": [
+          "settings"
+        ],
+        "summary": "Post Ai Test",
+        "operationId": "post_ai_test_api_settings_ai_test_post",
+        "parameters": [
+          {
+            "name": "provider_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Provider Id"
+            }
+          },
+          {
+            "name": "scenario_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Scenario Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiTestResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/translation/translate-text": {
       "post": {
         "tags": [
@@ -2661,6 +4600,88 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PlainTextTranslateRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/translation/readme-blocks": {
+      "post": {
+        "tags": [
+          "translation"
+        ],
+        "summary": "Post Readme Blocks Ephemeral",
+        "operationId": "post_readme_blocks_ephemeral_api_translation_readme_blocks_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PlainTextTranslateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadmeBlocksRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/translation/translate-readme-block": {
+      "post": {
+        "tags": [
+          "translation"
+        ],
+        "summary": "Post Translate Readme Block Ephemeral",
+        "operationId": "post_translate_readme_block_ephemeral_api_translation_translate_readme_block_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadmeBlockTranslateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReadmeBlockTranslateRead"
                 }
               }
             }
@@ -2725,6 +4746,484 @@
   },
   "components": {
     "schemas": {
+      "AiConfigRead": {
+        "properties": {
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/AiProviderRead"
+            },
+            "type": "array",
+            "title": "Providers"
+          },
+          "default_provider_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Provider Id"
+          },
+          "scenarios": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/AiScenarioBinding"
+            },
+            "type": "object",
+            "title": "Scenarios"
+          },
+          "scenario_labels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Scenario Labels"
+          },
+          "supported_providers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Supported Providers"
+          }
+        },
+        "type": "object",
+        "title": "AiConfigRead"
+      },
+      "AiConfigUpdate": {
+        "properties": {
+          "providers": {
+            "items": {
+              "$ref": "#/components/schemas/AiProviderWrite"
+            },
+            "type": "array",
+            "title": "Providers"
+          },
+          "default_provider_id": {
+            "type": "string",
+            "title": "Default Provider Id"
+          },
+          "scenarios": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/AiScenarioBinding"
+            },
+            "type": "object",
+            "title": "Scenarios"
+          }
+        },
+        "type": "object",
+        "required": [
+          "providers",
+          "default_provider_id"
+        ],
+        "title": "AiConfigUpdate"
+      },
+      "AiProviderRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "preset_id": {
+            "type": "string",
+            "title": "Preset Id"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider"
+          },
+          "base_url": {
+            "type": "string",
+            "title": "Base Url"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Models"
+          },
+          "default_model": {
+            "type": "string",
+            "title": "Default Model",
+            "default": ""
+          },
+          "has_api_key": {
+            "type": "boolean",
+            "title": "Has Api Key",
+            "default": false
+          },
+          "api_key_preview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key Preview"
+          },
+          "api_key_length": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key Length"
+          },
+          "is_default": {
+            "type": "boolean",
+            "title": "Is Default",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "preset_id",
+          "provider",
+          "base_url"
+        ],
+        "title": "AiProviderRead"
+      },
+      "AiProviderWrite": {
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id",
+            "description": "省略则新建"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "preset_id": {
+            "type": "string",
+            "title": "Preset Id"
+          },
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "default": "openai_compatible"
+          },
+          "base_url": {
+            "type": "string",
+            "title": "Base Url"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Models"
+          },
+          "default_model": {
+            "type": "string",
+            "title": "Default Model",
+            "default": ""
+          },
+          "api_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key",
+            "description": "写入数据库；省略表示不修改；传 null 或空字符串表示清除"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "preset_id",
+          "base_url"
+        ],
+        "title": "AiProviderWrite"
+      },
+      "AiScenarioBinding": {
+        "properties": {
+          "provider_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider Id",
+            "description": "绑定的供应商 id"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "该场景使用的模型"
+          }
+        },
+        "type": "object",
+        "title": "AiScenarioBinding"
+      },
+      "AiSettingsRead": {
+        "properties": {
+          "provider": {
+            "type": "string",
+            "title": "Provider",
+            "description": "LLM Provider"
+          },
+          "preset_id": {
+            "type": "string",
+            "title": "Preset Id",
+            "description": "平台预设 id（如 minimax-cn）"
+          },
+          "base_url": {
+            "type": "string",
+            "title": "Base Url",
+            "description": "OpenAI 兼容 API Base URL"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model",
+            "description": "模型名称"
+          },
+          "has_api_key": {
+            "type": "boolean",
+            "title": "Has Api Key",
+            "description": "是否存在可用 API Key（数据库或环境变量）"
+          },
+          "api_key_preview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key Preview",
+            "description": "仅当 Key 保存在数据库时返回末 4 位"
+          },
+          "api_key_length": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key Length",
+            "description": "仅当 Key 保存在数据库时返回字符长度"
+          },
+          "supported_providers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Supported Providers",
+            "description": "可选 Provider 列表"
+          },
+          "default_provider": {
+            "type": "string",
+            "title": "Default Provider",
+            "default": "openai_compatible"
+          },
+          "default_preset_id": {
+            "type": "string",
+            "title": "Default Preset Id",
+            "default": "minimax-cn"
+          },
+          "default_base_url": {
+            "type": "string",
+            "title": "Default Base Url",
+            "default": "https://api.minimaxi.com/v1"
+          },
+          "default_model": {
+            "type": "string",
+            "title": "Default Model",
+            "default": "MiniMax-M2.5-highspeed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider",
+          "preset_id",
+          "base_url",
+          "model",
+          "has_api_key"
+        ],
+        "title": "AiSettingsRead"
+      },
+      "AiSettingsUpdate": {
+        "properties": {
+          "provider": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider",
+            "description": "LLM Provider"
+          },
+          "preset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preset Id",
+            "description": "平台预设 id"
+          },
+          "base_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Url",
+            "description": "Base URL"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model",
+            "description": "模型名称"
+          },
+          "api_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key",
+            "description": "写入数据库；省略表示不修改；传 null 或空字符串表示清除"
+          }
+        },
+        "type": "object",
+        "title": "AiSettingsUpdate"
+      },
+      "AiTestResponse": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Message"
+          },
+          "sample": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sample"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok"
+        ],
+        "title": "AiTestResponse"
+      },
+      "Body_post_cover_style_reference_upload_api_project_libraries__library_id__content_factory_cover_styles_reference_upload_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_post_cover_style_reference_upload_api_project_libraries__library_id__content_factory_cover_styles_reference_upload_post"
+      },
+      "Body_post_upload_cover_api_project_libraries__library_id__content_factory_drafts__draft_id__upload_cover_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          },
+          "readme_sha": {
+            "type": "string",
+            "title": "Readme Sha",
+            "default": "unknown"
+          },
+          "size_preset_id": {
+            "type": "string",
+            "title": "Size Preset Id",
+            "default": "xiaohongshu-34"
+          },
+          "force": {
+            "type": "boolean",
+            "title": "Force",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_post_upload_cover_api_project_libraries__library_id__content_factory_drafts__draft_id__upload_cover_post"
+      },
       "BundleFolderSpec": {
         "properties": {
           "key": {
@@ -2977,6 +5476,1347 @@
         ],
         "title": "BundleTagSpec"
       },
+      "ColorStrategy": {
+        "properties": {
+          "main_color": {
+            "type": "string",
+            "title": "Main Color",
+            "default": ""
+          },
+          "accent_color": {
+            "type": "string",
+            "title": "Accent Color",
+            "default": ""
+          },
+          "background_note": {
+            "type": "string",
+            "title": "Background Note",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "ColorStrategy"
+      },
+      "ColorTokensRead": {
+        "properties": {
+          "background": {
+            "type": "string",
+            "title": "Background",
+            "default": "#0a0a0a"
+          },
+          "accent": {
+            "type": "string",
+            "title": "Accent",
+            "default": "#39ff14"
+          },
+          "text_safe": {
+            "type": "string",
+            "title": "Text Safe",
+            "default": "#ffffff"
+          }
+        },
+        "type": "object",
+        "title": "ColorTokensRead"
+      },
+      "ContentFactoryCopyJson": {
+        "properties": {
+          "title_options": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Title Options"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body",
+            "default": ""
+          },
+          "hashtags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Hashtags"
+          },
+          "highlight_tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Highlight Tags"
+          },
+          "hook": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hook"
+          },
+          "cover_texts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Cover Texts"
+          },
+          "cta": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cta"
+          },
+          "image_template": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image Template"
+          },
+          "source_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Title"
+          },
+          "source_body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Body"
+          },
+          "platform_variants": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "$ref": "#/components/schemas/ContentFactoryPlatformVariant"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platform Variants"
+          },
+          "cover_image_path": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Image Path"
+          },
+          "cover_readme_sha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Readme Sha"
+          },
+          "cover_generated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Generated At"
+          },
+          "cover_source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "readme_capture",
+                  "ai_generated"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Source"
+          },
+          "cover_style_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Style Id"
+          },
+          "cover_style_source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "builtin",
+                  "manual",
+                  "ai_generated"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Style Source"
+          },
+          "cover_prompt_record": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CoverPromptRecord"
+              },
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Prompt Record"
+          },
+          "cover_size_preset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Size Preset Id"
+          },
+          "cover_prompt_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Prompt Hash"
+          },
+          "cover_variants": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cover Variants"
+          }
+        },
+        "type": "object",
+        "title": "ContentFactoryCopyJson"
+      },
+      "ContentFactoryDraftCreate": {
+        "properties": {
+          "project_id": {
+            "type": "integer",
+            "title": "Project Id"
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "xiaohongshu",
+              "wechat",
+              "twitter",
+              "linkedin"
+            ],
+            "title": "Platform",
+            "default": "xiaohongshu"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id"
+        ],
+        "title": "ContentFactoryDraftCreate"
+      },
+      "ContentFactoryDraftRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "project_library_id": {
+            "type": "integer",
+            "title": "Project Library Id"
+          },
+          "project_id": {
+            "type": "integer",
+            "title": "Project Id"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "xiaohongshu",
+              "wechat",
+              "twitter",
+              "linkedin"
+            ],
+            "title": "Platform"
+          },
+          "step": {
+            "type": "integer",
+            "title": "Step"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "generated"
+            ],
+            "title": "Status"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "body_json": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body Json"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "project": {
+            "$ref": "#/components/schemas/ContentFactoryProjectBrief"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_library_id",
+          "project_id",
+          "kind",
+          "platform",
+          "step",
+          "status",
+          "title",
+          "body",
+          "body_json",
+          "created_at",
+          "updated_at",
+          "project"
+        ],
+        "title": "ContentFactoryDraftRead"
+      },
+      "ContentFactoryDraftUpdate": {
+        "properties": {
+          "platform": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "xiaohongshu",
+                  "wechat",
+                  "twitter",
+                  "linkedin"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platform"
+          },
+          "step": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 4.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Step"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "body_json": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContentFactoryCopyJson"
+              },
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body Json"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "draft",
+                  "generated"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "title": "ContentFactoryDraftUpdate"
+      },
+      "ContentFactoryPlatformVariant": {
+        "properties": {
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "title_options": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Title Options"
+          },
+          "highlight_tags": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Highlight Tags"
+          }
+        },
+        "type": "object",
+        "title": "ContentFactoryPlatformVariant"
+      },
+      "ContentFactoryProjectBrief": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "full_name": {
+            "type": "string",
+            "title": "Full Name"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "stars": {
+            "type": "integer",
+            "title": "Stars",
+            "default": 0
+          },
+          "language": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Language"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "full_name"
+        ],
+        "title": "ContentFactoryProjectBrief"
+      },
+      "CoverPromptRecord": {
+        "properties": {
+          "image_prompt": {
+            "type": "string",
+            "title": "Image Prompt",
+            "default": ""
+          },
+          "negative_prompt": {
+            "type": "string",
+            "title": "Negative Prompt",
+            "default": ""
+          },
+          "prompt_hash": {
+            "type": "string",
+            "title": "Prompt Hash",
+            "default": ""
+          },
+          "style_id": {
+            "type": "string",
+            "title": "Style Id",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "CoverPromptRecord"
+      },
+      "CoverStyleDesignAnalysis": {
+        "properties": {
+          "design_category": {
+            "type": "string",
+            "title": "Design Category",
+            "default": ""
+          },
+          "design_system": {
+            "type": "string",
+            "title": "Design System",
+            "default": ""
+          },
+          "typography_strategy": {
+            "$ref": "#/components/schemas/TypographyStrategy"
+          },
+          "layout_system": {
+            "$ref": "#/components/schemas/LayoutSystem"
+          },
+          "color_strategy": {
+            "$ref": "#/components/schemas/ColorStrategy"
+          },
+          "information_density": {
+            "type": "string",
+            "title": "Information Density",
+            "default": ""
+          },
+          "whitespace_usage": {
+            "type": "string",
+            "title": "Whitespace Usage",
+            "default": ""
+          },
+          "visual_components": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Visual Components"
+          },
+          "overall_mood": {
+            "type": "string",
+            "title": "Overall Mood",
+            "default": ""
+          },
+          "unique_memory_point": {
+            "type": "string",
+            "title": "Unique Memory Point",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "CoverStyleDesignAnalysis"
+      },
+      "CoverStyleForkRequest": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "hidden_source": {
+            "type": "boolean",
+            "title": "Hidden Source",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "CoverStyleForkRequest"
+      },
+      "CoverStyleGenerateRequest": {
+        "properties": {
+          "generation_brief": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 4000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generation Brief"
+          },
+          "reference_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Id"
+          },
+          "fork_from_style_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fork From Style Id"
+          },
+          "generate_example": {
+            "type": "boolean",
+            "title": "Generate Example",
+            "default": true
+          },
+          "auto_save": {
+            "type": "boolean",
+            "title": "Auto Save",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "CoverStyleGenerateRequest"
+      },
+      "CoverStyleListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CoverStyleRead"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "title": "CoverStyleListResponse"
+      },
+      "CoverStylePatch": {
+        "properties": {
+          "label": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 128
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "prompt_prefix": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Prefix"
+          },
+          "prompt_template": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Template"
+          },
+          "negative_prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Negative Prompt"
+          },
+          "color_tokens": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ColorTokensRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "font_tokens": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FontTokensRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "style_report": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Style Report"
+          },
+          "design_analysis": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CoverStyleDesignAnalysis"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "hidden": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hidden"
+          }
+        },
+        "type": "object",
+        "title": "CoverStylePatch"
+      },
+      "CoverStylePreviewRequest": {
+        "properties": {
+          "size_preset_id": {
+            "type": "string",
+            "title": "Size Preset Id",
+            "default": "xiaohongshu-34"
+          },
+          "force": {
+            "type": "boolean",
+            "title": "Force",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "CoverStylePreviewRequest"
+      },
+      "CoverStylePreviewResponse": {
+        "properties": {
+          "example_image_url": {
+            "type": "string",
+            "title": "Example Image Url"
+          },
+          "style_id": {
+            "type": "string",
+            "title": "Style Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "example_image_url",
+          "style_id"
+        ],
+        "title": "CoverStylePreviewResponse"
+      },
+      "CoverStyleRead": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "builtin",
+              "manual",
+              "ai_generated"
+            ],
+            "title": "Source",
+            "default": "builtin"
+          },
+          "prompt_prefix": {
+            "type": "string",
+            "title": "Prompt Prefix",
+            "default": ""
+          },
+          "prompt_template": {
+            "type": "string",
+            "title": "Prompt Template",
+            "default": ""
+          },
+          "negative_prompt": {
+            "type": "string",
+            "title": "Negative Prompt",
+            "default": ""
+          },
+          "color_tokens": {
+            "$ref": "#/components/schemas/ColorTokensRead"
+          },
+          "font_tokens": {
+            "$ref": "#/components/schemas/FontTokensRead"
+          },
+          "style_report": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Style Report"
+          },
+          "design_analysis": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CoverStyleDesignAnalysis"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "example_image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Example Image Url"
+          },
+          "reference_image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Image Url"
+          },
+          "fork_from_style_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fork From Style Id"
+          },
+          "hidden": {
+            "type": "boolean",
+            "title": "Hidden",
+            "default": false
+          },
+          "is_deletable": {
+            "type": "boolean",
+            "title": "Is Deletable",
+            "default": false
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "label"
+        ],
+        "title": "CoverStyleRead"
+      },
+      "CoverStyleReferenceUploadResponse": {
+        "properties": {
+          "reference_id": {
+            "type": "string",
+            "title": "Reference Id"
+          },
+          "preview_url": {
+            "type": "string",
+            "title": "Preview Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reference_id",
+          "preview_url"
+        ],
+        "title": "CoverStyleReferenceUploadResponse"
+      },
+      "CoverStyleRefinePromptTemplateRequest": {
+        "properties": {
+          "prompt_template": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Prompt Template"
+          },
+          "instruction": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Instruction"
+          },
+          "prompt_prefix": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Prefix"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt_template",
+          "instruction"
+        ],
+        "title": "CoverStyleRefinePromptTemplateRequest"
+      },
+      "CoverStyleRefinePromptTemplateResponse": {
+        "properties": {
+          "prompt_template": {
+            "type": "string",
+            "title": "Prompt Template"
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt_template"
+        ],
+        "title": "CoverStyleRefinePromptTemplateResponse"
+      },
+      "CoverStyleRefineRequest": {
+        "properties": {
+          "instruction": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Instruction"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "design_analysis": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CoverStyleDesignAnalysis"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "prompt_prefix": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Prompt Prefix"
+          },
+          "prompt_template": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Prompt Template"
+          },
+          "negative_prompt": {
+            "type": "string",
+            "title": "Negative Prompt",
+            "default": ""
+          },
+          "color_tokens": {
+            "$ref": "#/components/schemas/ColorTokensRead"
+          },
+          "font_tokens": {
+            "$ref": "#/components/schemas/FontTokensRead"
+          },
+          "style_report": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Style Report"
+          }
+        },
+        "type": "object",
+        "required": [
+          "instruction",
+          "prompt_prefix",
+          "prompt_template"
+        ],
+        "title": "CoverStyleRefineRequest"
+      },
+      "CoverStyleRefineResponse": {
+        "properties": {
+          "design_analysis": {
+            "$ref": "#/components/schemas/CoverStyleDesignAnalysis"
+          },
+          "prompt_prefix": {
+            "type": "string",
+            "title": "Prompt Prefix"
+          },
+          "prompt_template": {
+            "type": "string",
+            "title": "Prompt Template"
+          },
+          "negative_prompt": {
+            "type": "string",
+            "title": "Negative Prompt",
+            "default": ""
+          },
+          "color_tokens": {
+            "$ref": "#/components/schemas/ColorTokensRead"
+          },
+          "font_tokens": {
+            "$ref": "#/components/schemas/FontTokensRead"
+          },
+          "style_report": {
+            "type": "string",
+            "title": "Style Report",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "prompt_prefix",
+          "prompt_template"
+        ],
+        "title": "CoverStyleRefineResponse"
+      },
+      "CoverStyleSaveParsedRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "prompt_prefix": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Prompt Prefix"
+          },
+          "prompt_template": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Prompt Template"
+          },
+          "negative_prompt": {
+            "type": "string",
+            "title": "Negative Prompt",
+            "default": ""
+          },
+          "color_tokens": {
+            "$ref": "#/components/schemas/ColorTokensRead"
+          },
+          "font_tokens": {
+            "$ref": "#/components/schemas/FontTokensRead"
+          },
+          "style_report": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Style Report"
+          },
+          "design_analysis": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CoverStyleDesignAnalysis"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "reference_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Id"
+          },
+          "fork_from_style_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fork From Style Id"
+          },
+          "generate_example": {
+            "type": "boolean",
+            "title": "Generate Example",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "prompt_prefix",
+          "prompt_template"
+        ],
+        "title": "CoverStyleSaveParsedRequest"
+      },
+      "CoverStyleWrite": {
+        "properties": {
+          "style_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Style Id",
+            "description": "省略则自动生成"
+          },
+          "label": {
+            "type": "string",
+            "maxLength": 128,
+            "minLength": 1,
+            "title": "Label"
+          },
+          "prompt_prefix": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Prompt Prefix"
+          },
+          "prompt_template": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Prompt Template"
+          },
+          "negative_prompt": {
+            "type": "string",
+            "title": "Negative Prompt",
+            "default": ""
+          },
+          "color_tokens": {
+            "$ref": "#/components/schemas/ColorTokensRead"
+          },
+          "font_tokens": {
+            "$ref": "#/components/schemas/FontTokensRead"
+          },
+          "style_report": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Style Report"
+          },
+          "fork_from_style_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fork From Style Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "prompt_prefix",
+          "prompt_template"
+        ],
+        "title": "CoverStyleWrite"
+      },
       "DiscoveryEnrichEntry": {
         "properties": {
           "full_name": {
@@ -3140,6 +6980,19 @@
                 "type": "null"
               }
             ]
+          },
+          "baseline_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Baseline At",
+            "description": "趋势上一期快照时间；无快照时为 null"
           }
         },
         "type": "object",
@@ -3152,6 +7005,51 @@
           "source"
         ],
         "title": "DiscoveryPageRead"
+      },
+      "DiscoveryRepoDeltaRead": {
+        "properties": {
+          "stars": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stars"
+          },
+          "forks": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Forks"
+          },
+          "rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank",
+            "description": "排名变化：正数表示上升（如 10→5 为 +5）"
+          },
+          "is_new": {
+            "type": "boolean",
+            "title": "Is New",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "DiscoveryRepoDeltaRead"
       },
       "DiscoveryRepoRead": {
         "properties": {
@@ -3250,6 +7148,16 @@
               }
             ],
             "title": "Pushed At"
+          },
+          "delta": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DiscoveryRepoDeltaRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -3548,6 +7456,14 @@
             "type": "string",
             "title": "Name"
           },
+          "tags": {
+            "items": {
+              "$ref": "#/components/schemas/TagBrief"
+            },
+            "type": "array",
+            "title": "Tags",
+            "default": []
+          },
           "children": {
             "items": {
               "$ref": "#/components/schemas/FolderTreeNode"
@@ -3627,6 +7543,134 @@
         },
         "type": "object",
         "title": "FolderUpdate"
+      },
+      "FontTokensRead": {
+        "properties": {
+          "heading": {
+            "type": "string",
+            "enum": [
+              "sans",
+              "serif",
+              "mono",
+              "display"
+            ],
+            "title": "Heading",
+            "default": "sans"
+          },
+          "body": {
+            "type": "string",
+            "enum": [
+              "sans",
+              "serif",
+              "mono",
+              "display"
+            ],
+            "title": "Body",
+            "default": "sans"
+          },
+          "accent": {
+            "type": "string",
+            "enum": [
+              "sans",
+              "serif",
+              "mono",
+              "display"
+            ],
+            "title": "Accent",
+            "default": "mono"
+          }
+        },
+        "type": "object",
+        "title": "FontTokensRead"
+      },
+      "GenerateAiCoverRequest": {
+        "properties": {
+          "style_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Style Id"
+          },
+          "size_preset_id": {
+            "type": "string",
+            "title": "Size Preset Id",
+            "default": "xiaohongshu-34"
+          },
+          "force": {
+            "type": "boolean",
+            "title": "Force",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "style_id"
+        ],
+        "title": "GenerateAiCoverRequest"
+      },
+      "GenerateCopyRequest": {
+        "properties": {
+          "preview_only": {
+            "type": "boolean",
+            "title": "Preview Only",
+            "default": false
+          },
+          "regenerate": {
+            "type": "boolean",
+            "title": "Regenerate",
+            "default": false
+          },
+          "platform": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "xiaohongshu",
+                  "wechat",
+                  "twitter",
+                  "linkedin"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Platform"
+          },
+          "from_source": {
+            "type": "boolean",
+            "title": "From Source",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "GenerateCopyRequest"
+      },
+      "GenerateCopyResponse": {
+        "properties": {
+          "draft": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContentFactoryDraftRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "generated_copy": {
+            "$ref": "#/components/schemas/ContentFactoryCopyJson"
+          },
+          "preview_only": {
+            "type": "boolean",
+            "title": "Preview Only",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "generated_copy"
+        ],
+        "title": "GenerateCopyResponse"
       },
       "GithubProfileRead": {
         "properties": {
@@ -3824,6 +7868,22 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "LayoutSystem": {
+        "properties": {
+          "structure": {
+            "type": "string",
+            "title": "Structure",
+            "default": ""
+          },
+          "alignment": {
+            "type": "string",
+            "title": "Alignment",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "LayoutSystem"
+      },
       "LibraryTreeResponse": {
         "properties": {
           "folders": {
@@ -3848,6 +7908,46 @@
         ],
         "title": "LibraryTreeResponse",
         "description": "语雀式侧边栏：顶层文件夹树 + 未归入文件夹的项目。"
+      },
+      "OptimizeSelectionRequest": {
+        "properties": {
+          "selected_text": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Selected Text"
+          },
+          "full_body": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 10000
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Body"
+          }
+        },
+        "type": "object",
+        "required": [
+          "selected_text"
+        ],
+        "title": "OptimizeSelectionRequest"
+      },
+      "OptimizeSelectionResponse": {
+        "properties": {
+          "optimized_text": {
+            "type": "string",
+            "title": "Optimized Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "optimized_text"
+        ],
+        "title": "OptimizeSelectionResponse"
       },
       "PlainTextTranslateRead": {
         "properties": {
@@ -4993,6 +9093,24 @@
         "type": "object",
         "title": "ReadmeBlocksRead"
       },
+      "RevealCoverResponse": {
+        "properties": {
+          "absolute_path": {
+            "type": "string",
+            "title": "Absolute Path"
+          },
+          "directory": {
+            "type": "string",
+            "title": "Directory"
+          }
+        },
+        "type": "object",
+        "required": [
+          "absolute_path",
+          "directory"
+        ],
+        "title": "RevealCoverResponse"
+      },
       "TagBrief": {
         "properties": {
           "id": {
@@ -5023,6 +9141,87 @@
         "title": "TagBrief",
         "description": "项目详情/列表中携带的标签摘要。"
       },
+      "TagCategoryApplyItem": {
+        "properties": {
+          "tag_id": {
+            "type": "integer",
+            "title": "Tag Id"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "new_category_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Category Name",
+            "description": "category_id 为空且提供此项时，apply 阶段 get-or-create 分类"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tag_id"
+        ],
+        "title": "TagCategoryApplyItem"
+      },
+      "TagCategoryApplyRequest": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/TagCategoryApplyItem"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "TagCategoryApplyRequest"
+      },
+      "TagCategoryApplyResponse": {
+        "properties": {
+          "applied": {
+            "type": "integer",
+            "title": "Applied",
+            "default": 0
+          },
+          "categories_created": {
+            "type": "integer",
+            "title": "Categories Created",
+            "default": 0
+          },
+          "skipped": {
+            "type": "integer",
+            "title": "Skipped",
+            "default": 0
+          },
+          "errors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Errors"
+          }
+        },
+        "type": "object",
+        "title": "TagCategoryApplyResponse"
+      },
       "TagCategoryCreate": {
         "properties": {
           "name": {
@@ -5049,6 +9248,67 @@
           "name"
         ],
         "title": "TagCategoryCreate"
+      },
+      "TagCategoryProposal": {
+        "properties": {
+          "tag_id": {
+            "type": "integer",
+            "title": "Tag Id"
+          },
+          "tag_name": {
+            "type": "string",
+            "title": "Tag Name"
+          },
+          "category_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category Id"
+          },
+          "new_category_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New Category Name"
+          },
+          "confidence": {
+            "type": "string",
+            "enum": [
+              "high",
+              "medium",
+              "low"
+            ],
+            "title": "Confidence",
+            "default": "medium"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tag_id",
+          "tag_name"
+        ],
+        "title": "TagCategoryProposal"
       },
       "TagCategoryRead": {
         "properties": {
@@ -5078,6 +9338,58 @@
           "created_at"
         ],
         "title": "TagCategoryRead"
+      },
+      "TagCategorySuggestRequest": {
+        "properties": {
+          "tag_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tag Ids",
+            "description": "仅处理指定未分类标签；省略则处理库内全部未分类"
+          },
+          "include_new_categories": {
+            "type": "boolean",
+            "title": "Include New Categories",
+            "description": "允许 LLM 建议新建分类名（apply 时再创建）",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "TagCategorySuggestRequest"
+      },
+      "TagCategorySuggestResponse": {
+        "properties": {
+          "proposals": {
+            "items": {
+              "$ref": "#/components/schemas/TagCategoryProposal"
+            },
+            "type": "array",
+            "title": "Proposals"
+          },
+          "batches": {
+            "type": "integer",
+            "title": "Batches",
+            "default": 0
+          },
+          "skipped_tag_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Skipped Tag Ids"
+          }
+        },
+        "type": "object",
+        "title": "TagCategorySuggestResponse"
       },
       "TagCategoryUpdate": {
         "properties": {
@@ -5168,10 +9480,25 @@
             ],
             "title": "Category Name"
           },
+          "project_usage_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Project Usage Count",
+            "description": "未删除项目上的关联数",
+            "default": 0
+          },
+          "folder_usage_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Folder Usage Count",
+            "description": "文件夹上的关联数",
+            "default": 0
+          },
           "usage_count": {
             "type": "integer",
             "minimum": 0.0,
             "title": "Usage Count",
+            "description": "project_usage_count + folder_usage_count",
             "default": 0
           }
         },
@@ -5290,6 +9617,49 @@
           "ok"
         ],
         "title": "TranslationTestResponse"
+      },
+      "TypographyStrategy": {
+        "properties": {
+          "title_ratio": {
+            "type": "string",
+            "title": "Title Ratio",
+            "default": ""
+          },
+          "weight": {
+            "type": "string",
+            "title": "Weight",
+            "default": ""
+          },
+          "hierarchy_levels": {
+            "type": "string",
+            "title": "Hierarchy Levels",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "TypographyStrategy"
+      },
+      "UploadCoverResponse": {
+        "properties": {
+          "cover_url": {
+            "type": "string",
+            "title": "Cover Url"
+          },
+          "draft": {
+            "$ref": "#/components/schemas/ContentFactoryDraftRead"
+          },
+          "cached": {
+            "type": "boolean",
+            "title": "Cached"
+          }
+        },
+        "type": "object",
+        "required": [
+          "cover_url",
+          "draft",
+          "cached"
+        ],
+        "title": "UploadCoverResponse"
       },
       "ValidationError": {
         "properties": {

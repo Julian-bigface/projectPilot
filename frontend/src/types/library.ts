@@ -4,6 +4,7 @@ import type { Project } from "@/types/project"
 export interface FolderTreeNode {
   id: number
   name: string
+  tags?: FolderTagBrief[]
   children: FolderTreeNode[]
   projects: Project[]
 }

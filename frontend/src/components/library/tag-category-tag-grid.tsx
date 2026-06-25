@@ -1,9 +1,10 @@
 import { Search } from "lucide-react"
 import { useMemo } from "react"
 
-import { TagGridRow, type TagActions } from "@/components/library/tag-management-shared"
+import { TagGridRow, type TagActions, type TagSelectOptions } from "@/components/library/tag-management-shared"
 import {
   TAG_CATEGORY_GRID_SCROLL_CLASS,
+  TAG_CATEGORY_PANEL_SHELL_CLASS,
   TAG_CATEGORY_PANEL_TITLE_CLASS,
   TAG_CATEGORY_SCROLL_BASE_CLASS,
   TAG_CATEGORY_SEARCH_INPUT_CLASS,
@@ -28,7 +29,7 @@ export type TagCategoryTagGridProps = {
   panelTagSearch: string
   onPanelTagSearchChange: (value: string) => void
   selectedTagIds: Set<number>
-  onTagSelect: (tagId: number, options: { additive: boolean }) => void
+  onTagSelect: (tagId: number, options: TagSelectOptions, visibleTagIds: number[]) => void
   onSelectAll: (tagIds: number[]) => void
   onClearSelection: () => void
   onBatchMove: (categoryId: number | null) => void
@@ -68,15 +69,17 @@ export function TagCategoryTagGrid({
   const { scrollbarVisible, onScroll } = useAutoScrollbarVisible()
 
   return (
-    <div className="border-border bg-card flex h-full max-h-[min(72vh,760px)] min-h-0 min-w-0 flex-1 flex-col rounded-lg border">
+    <div className={cn(TAG_CATEGORY_PANEL_SHELL_CLASS, "min-w-0 flex-1")}>
       <div className="space-y-3 border-border border-b p-3">
         <div className="flex min-h-8 items-start justify-between gap-3">
           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             <h3 className={TAG_CATEGORY_PANEL_TITLE_CLASS}>{title}</h3>
             <HoverHelp contentClassName="w-64">
               <p>
-                将标签拖到左侧分类可快速归类。按住 <kbd className="bg-muted rounded px-1 py-px font-mono text-[10px]">Ctrl</kbd>{" "}
-                点击可多选，选中后使用下方批量操作。
+                将标签拖到左侧分类可快速归类。按住{" "}
+                <kbd className="bg-muted rounded px-1 py-px font-mono text-[10px]">Ctrl</kbd>{" "}
+                多选、<kbd className="bg-muted rounded px-1 py-px font-mono text-[10px]">Shift</kbd>{" "}
+                范围选，选中后使用下方批量操作。
               </p>
             </HoverHelp>
             <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-xs tabular-nums">
@@ -84,9 +87,6 @@ export function TagCategoryTagGrid({
             </span>
           </div>
         </div>
-        <p className="text-muted-foreground text-xs leading-relaxed">
-          将标签拖拽到左侧分类；按住 Ctrl 点击可多选标签
-        </p>
 
         <div className="relative">
           <Search
@@ -127,7 +127,8 @@ export function TagCategoryTagGrid({
                 tag={tag}
                 actions={actions}
                 selected={selectedTagIds.has(tag.id)}
-                onSelect={(options) => onTagSelect(tag.id, options)}
+                visibleTagIds={filteredTagIds}
+                onSelect={(options) => onTagSelect(tag.id, options, filteredTagIds)}
               />
             ))}
           </div>

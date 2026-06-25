@@ -1,17 +1,29 @@
 import { useCallback, useEffect, useState, type RefObject } from "react"
 import { useLocation, useNavigate } from "react-router"
 
-import { isSettingsSectionId, SETTINGS_SECTIONS, type SettingsSectionId } from "@/lib/settings-sections"
+import {
+  isSettingsScrollSectionId,
+  SETTINGS_SCROLL_SECTIONS,
+  type SettingsScrollSectionId,
+} from "@/lib/settings-sections"
 
-const SECTION_IDS = SETTINGS_SECTIONS.map((section) => section.id)
+const SECTION_IDS = SETTINGS_SCROLL_SECTIONS.map((section) => section.id)
 
-export function useSettingsScrollSpy(scrollRootRef: RefObject<HTMLElement | null>) {
+type UseSettingsScrollSpyOptions = {
+  enabled?: boolean
+}
+
+export function useSettingsScrollSpy(
+  scrollRootRef: RefObject<HTMLElement | null>,
+  options: UseSettingsScrollSpyOptions = {}
+) {
+  const { enabled = true } = options
   const navigate = useNavigate()
   const { hash } = useLocation()
-  const [activeId, setActiveId] = useState<SettingsSectionId>("general")
+  const [activeId, setActiveId] = useState<SettingsScrollSectionId>("general")
 
   const scrollToSection = useCallback(
-    (id: SettingsSectionId) => {
+    (id: SettingsScrollSectionId) => {
       setActiveId(id)
       navigate({ pathname: "/settings", hash: id }, { replace: true })
       document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" })
@@ -20,17 +32,19 @@ export function useSettingsScrollSpy(scrollRootRef: RefObject<HTMLElement | null
   )
 
   useEffect(() => {
+    if (!enabled) return
     const id = hash.replace(/^#/, "")
-    if (!isSettingsSectionId(id)) {
+    if (!isSettingsScrollSectionId(id)) {
       return
     }
     setActiveId(id)
     requestAnimationFrame(() => {
       document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" })
     })
-  }, [hash])
+  }, [enabled, hash])
 
   useEffect(() => {
+    if (!enabled) return
     const root = scrollRootRef.current
     if (!root) {
       return
@@ -49,7 +63,7 @@ export function useSettingsScrollSpy(scrollRootRef: RefObject<HTMLElement | null
           .filter((entry) => entry.isIntersecting)
           .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
         const nextId = visible[0]?.target.id
-        if (isSettingsSectionId(nextId)) {
+        if (isSettingsScrollSectionId(nextId)) {
           setActiveId(nextId)
         }
       },
@@ -60,7 +74,7 @@ export function useSettingsScrollSpy(scrollRootRef: RefObject<HTMLElement | null
       observer.observe(element)
     }
     return () => observer.disconnect()
-  }, [scrollRootRef])
+  }, [enabled, scrollRootRef])
 
   return { activeId, scrollToSection }
 }

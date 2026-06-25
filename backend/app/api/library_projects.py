@@ -116,7 +116,9 @@ async def create_library_project(
     enriched = await try_enrich_project_from_github(db, project)
     await db.refresh(project)
     if not enriched and body.topics:
-        await sync_project_tags_from_github_topics(db, project.id, list(body.topics))
+        await sync_project_tags_from_github_topics(
+            db, project.id, list(body.topics), library_id=library.id
+        )
         await db.commit()
         await db.refresh(project)
     return await project_to_read(db, project)

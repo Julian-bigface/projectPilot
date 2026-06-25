@@ -1,13 +1,19 @@
 import { ArrowLeft } from "lucide-react"
 import { useEffect, useRef } from "react"
-import { Link, useLocation, useNavigate } from "react-router"
+import { Link, NavLink, useLocation, useNavigate } from "react-router"
 
 import { FunctionRail } from "@/components/layout/function-rail"
 import { useGithubSettingsDialog } from "@/context/github-settings-dialog"
 import { useSettingsScrollSpy } from "@/hooks/use-settings-scroll-spy"
 import { readLastProjectLibraryId } from "@/context/project-library"
-import { isSettingsSectionId, SETTINGS_SECTIONS } from "@/lib/settings-sections"
+import {
+  isSettingsAiPath,
+  isSettingsScrollSectionId,
+  SETTINGS_AI_ROUTE,
+  SETTINGS_SCROLL_SECTIONS,
+} from "@/lib/settings-sections"
 import { cn } from "@/lib/utils"
+import { AiSettingsPage } from "@/pages/ai-settings"
 import { SettingsPage } from "@/pages/settings"
 
 const navItem =
@@ -20,7 +26,8 @@ export function SettingsLayout() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const { openDialog } = useGithubSettingsDialog()
-  const { activeId, scrollToSection } = useSettingsScrollSpy(scrollRef)
+  const isAiPage = isSettingsAiPath(pathname)
+  const { activeId, scrollToSection } = useSettingsScrollSpy(scrollRef, { enabled: !isAiPage })
 
   useEffect(() => {
     const legacySection = pathname.replace(/^\/settings\/?/, "")
@@ -29,7 +36,11 @@ export function SettingsLayout() {
       navigate({ pathname: "/settings" }, { replace: true })
       return
     }
-    if (isSettingsSectionId(legacySection)) {
+    if (legacySection === "ai") {
+      navigate({ pathname: SETTINGS_AI_ROUTE.path }, { replace: true })
+      return
+    }
+    if (isSettingsScrollSectionId(legacySection)) {
       navigate({ pathname: "/settings", hash: legacySection }, { replace: true })
     }
   }, [navigate, openDialog, pathname])
@@ -52,26 +63,47 @@ export function SettingsLayout() {
             </Link>
           </div>
           <nav className="flex flex-col gap-1 p-3" aria-label="设置分区">
-            {SETTINGS_SECTIONS.map((section) => (
-              <button
-                key={section.id}
-                type="button"
-                className={cn(
+            {SETTINGS_SCROLL_SECTIONS.map((section) =>
+              isAiPage ? (
+                <Link
+                  key={section.id}
+                  to={`/settings#${section.id}`}
+                  className={navItem}
+                >
+                  {section.label}
+                </Link>
+              ) : (
+                <button
+                  key={section.id}
+                  type="button"
+                  className={cn(
+                    navItem,
+                    activeId === section.id && "bg-accent text-accent-foreground font-medium"
+                  )}
+                  aria-current={activeId === section.id ? "true" : undefined}
+                  onClick={() => scrollToSection(section.id)}
+                >
+                  {section.label}
+                </button>
+              )
+            )}
+            <NavLink
+              to={SETTINGS_AI_ROUTE.path}
+              className={({ isActive }) =>
+                cn(
                   navItem,
-                  activeId === section.id &&
-                    "bg-accent text-accent-foreground font-medium"
-                )}
-                aria-current={activeId === section.id ? "true" : undefined}
-                onClick={() => scrollToSection(section.id)}
-              >
-                {section.label}
-              </button>
-            ))}
+                  (isActive || isAiPage) && "bg-accent text-accent-foreground font-medium"
+                )
+              }
+              aria-current={isAiPage ? "page" : undefined}
+            >
+              {SETTINGS_AI_ROUTE.label}
+            </NavLink>
           </nav>
         </aside>
         <main ref={scrollRef} className="min-h-0 flex-1 overflow-auto">
           <div className="mx-auto max-w-3xl px-8 py-10 md:px-12 md:py-14">
-            <SettingsPage />
+            {isAiPage ? <AiSettingsPage /> : <SettingsPage />}
           </div>
         </main>
       </div>

@@ -17,16 +17,18 @@ export type DiscoveryRepoDetailHeaderProps = {
   repo: DiscoveryRepo
   enriching?: boolean
   importedProjectId?: number | null
-  fromPath?: string
-  onImport?: () => void
+  onCollect?: () => void
+  onUncollect?: () => void
+  uncollecting?: boolean
 }
 
 export function DiscoveryRepoDetailHeader({
   repo,
   enriching = false,
   importedProjectId = null,
-  fromPath,
-  onImport,
+  onCollect,
+  onUncollect,
+  uncollecting = false,
 }: DiscoveryRepoDetailHeaderProps) {
   const owner = parseGithubOwner(repo.full_name)
   const zreadUrl = zreadProjectUrl(repo.full_name)
@@ -56,9 +58,10 @@ export function DiscoveryRepoDetailHeader({
             </Button>
             <DiscoveryLibraryStarButton
               importedProjectId={importedProjectId}
-              fromPath={fromPath}
-              onImport={onImport}
-              showImportedLabel
+              onCollect={onCollect}
+              onUncollect={onUncollect}
+              uncollecting={uncollecting}
+              showCollectedLabel
             />
           </div>
           <div className="text-muted-foreground mt-2 flex min-w-0 items-center gap-1.5 text-sm">

@@ -4,6 +4,7 @@ import { Link } from "react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { ExternalLink } from "@/components/common/external-link"
+import { AppVersionLabel } from "@/components/common/app-version-label"
 import { ThemeCycleButton } from "@/components/common/theme-cycle-button"
 import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -137,28 +138,31 @@ export function RailUserMenu({ settingsActive = false }: RailUserMenuProps) {
           </Link>
         </div>
 
-        <div className="border-border flex items-center justify-between gap-2 border-t px-3 py-2.5">
-          {canLogout ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground h-8 px-2 text-xs"
-              disabled={logoutMutation.isPending}
-              onClick={() => logoutMutation.mutate()}
-            >
-              {logoutMutation.isPending ? (
-                <Loader2 className="mr-1.5 size-3.5 animate-spin" aria-hidden />
-              ) : (
-                <LogOut className="mr-1.5 size-3.5" aria-hidden />
-              )}
-              退出连接
-            </Button>
-          ) : (
-            <span className="text-muted-foreground px-1 text-xs">Token 来自环境变量</span>
-          )}
+        <div className="border-border flex flex-col gap-2 border-t px-3 py-2.5">
+          <div className="flex items-center justify-between gap-2">
+            {canLogout ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground h-8 px-2 text-xs"
+                disabled={logoutMutation.isPending}
+                onClick={() => logoutMutation.mutate()}
+              >
+                {logoutMutation.isPending ? (
+                  <Loader2 className="mr-1.5 size-3.5 animate-spin" aria-hidden />
+                ) : (
+                  <LogOut className="mr-1.5 size-3.5" aria-hidden />
+                )}
+                退出连接
+              </Button>
+            ) : (
+              <span className="text-muted-foreground px-1 text-xs">Token 来自环境变量</span>
+            )}
 
-          <ThemeCycleButton />
+            <ThemeCycleButton />
+          </div>
+          <AppVersionLabel className="px-1" />
         </div>
       </PopoverContent>
     </Popover>

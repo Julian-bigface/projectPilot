@@ -21,6 +21,9 @@ import {
   DiscoveryIndexRedirect,
   DiscoveryRoutePlaceholder,
 } from "@/pages/discovery/layout"
+import { ContentFactoryLibraryRedirect } from "@/pages/content-factory/library-redirect"
+import { ContentFactoryRedirect } from "@/pages/content-factory/redirect"
+import { ProjectPromotionPage } from "@/pages/content-factory/project-promotion"
 import { ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { ThemeAwareToaster } from "@/components/theme-aware-toaster"
@@ -55,13 +58,27 @@ export default function App() {
                 <WelcomeGate>
                 <Routes>
                   <Route path="/settings/*" element={<SettingsLayout />} />
+                  <Route path="/ai" element={<Navigate to="/settings/ai" replace />} />
                   <Route path="/" element={<AppLayout />}>
                     <Route index element={<LibraryRedirect />} />
                     <Route path="library" element={<LibraryRedirect />} />
                     <Route path="libraries" element={<ProjectLibrariesHomePage />} />
                     <Route path="libraries/:libraryId" element={<ProjectLibraryLayout />}>
                       <Route index element={<LibraryHomePage />} />
+                      <Route
+                        path="content-factory"
+                        element={<ContentFactoryLibraryRedirect />}
+                      />
+                      <Route
+                        path="content-factory/project-promotion"
+                        element={<ProjectPromotionPage />}
+                      />
+                      <Route
+                        path="content-factory/project-promotion/:draftId"
+                        element={<ProjectPromotionPage />}
+                      />
                     </Route>
+                    <Route path="content-factory" element={<ContentFactoryRedirect />} />
                     <Route path="discovery" element={<DiscoveryLayout />}>
                       <Route index element={<DiscoveryIndexRedirect />} />
                       <Route path="r/:owner/:repo" element={<DiscoveryRoutePlaceholder />} />

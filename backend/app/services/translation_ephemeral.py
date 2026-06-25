@@ -11,7 +11,11 @@ from app.services.settings_translation import (
     get_translation_target_lang,
 )
 from app.services.translation import get_translation_provider
-from app.services.translation.markdown_translate import translate_plain_text
+from app.services.translation.markdown_translate import (
+    list_markdown_display_blocks,
+    translate_markdown_block,
+    translate_plain_text,
+)
 from app.services.translation.provider import TranslationError
 
 
@@ -49,3 +53,25 @@ async def translate_to_english_for_search(db: AsyncSession, content: str) -> str
         raise
     except Exception as err:
         raise TranslationError("翻译失败，请稍后重试。") from err
+
+
+def list_readme_blocks_ephemeral(content: str) -> list[str]:
+    return list_markdown_display_blocks(content)
+
+
+async def translate_readme_block_ephemeral(db: AsyncSession, content: str) -> str:
+    provider_name = await get_translation_provider_name(db)
+    target_lang = await get_translation_target_lang(db)
+    provider = get_translation_provider(provider_name)
+    try:
+        return await asyncio.to_thread(
+            translate_markdown_block,
+            provider,
+            content,
+            "auto",
+            target_lang,
+        )
+    except TranslationError:
+        raise
+    except Exception as err:
+        raise TranslationError("段落翻译失败，请稍后重试。") from err

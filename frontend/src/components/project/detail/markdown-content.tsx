@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState, type HTMLAttributes, type ReactElement, type ReactNode } from "react"
+import { useCallback, useMemo, useState, type HTMLAttributes, type ReactElement, type ReactNode, type SourceHTMLAttributes } from "react"
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import rehypeRaw from "rehype-raw"
@@ -8,8 +8,9 @@ import { ImageOff, RotateCw } from "lucide-react"
 
 import { createHeadingIdAssigner, README_HEADING_ATTR } from "@/lib/markdown-toc"
 import { openExternalUrl, isDesktopShell } from "@/lib/open-external-url"
+import { isReadmeBadgeImage, isReadmeHeroBadgeImage } from "@/lib/readme-image-kind"
 import { resolveReadmeRepoPath } from "@/lib/readme-link-resolve"
-import { resolveReadmeImageSrc } from "@/lib/readme-media-resolve"
+import { resolveReadmeImageSrc, resolveReadmeSrcSet } from "@/lib/readme-media-resolve"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
@@ -21,9 +22,10 @@ const baseSanitizeSchema = {
     p: [...(defaultSchema.attributes?.p ?? []), "align"],
     div: [...(defaultSchema.attributes?.div ?? []), "align"],
     img: [...(defaultSchema.attributes?.img ?? []), "width", "height", "align", "loading"],
+    source: [...(defaultSchema.attributes?.source ?? []), "media"],
     h1: [...(defaultSchema.attributes?.h1 ?? []), "id", README_HEADING_ATTR, "align"],
-    h2: [...(defaultSchema.attributes?.h2 ?? []), "id", README_HEADING_ATTR],
-    h3: [...(defaultSchema.attributes?.h3 ?? []), "id", README_HEADING_ATTR],
+    h2: [...(defaultSchema.attributes?.h2 ?? []), "id", README_HEADING_ATTR, "align"],
+    h3: [...(defaultSchema.attributes?.h3 ?? []), "id", README_HEADING_ATTR, "align"],
     h4: [...(defaultSchema.attributes?.h4 ?? []), "id", README_HEADING_ATTR],
     h5: [...(defaultSchema.attributes?.h5 ?? []), "id", README_HEADING_ATTR],
     h6: [...(defaultSchema.attributes?.h6 ?? []), "id", README_HEADING_ATTR],
@@ -51,20 +53,28 @@ const markdownClassName = cn(
   "[&_table]:mb-4 [&_table]:w-full [&_table]:border-collapse",
   "[&_th]:border-border [&_th]:border [&_th]:bg-muted/40 [&_th]:px-3 [&_th]:py-2 [&_th]:text-left",
   "[&_td]:border-border [&_td]:border [&_td]:px-3 [&_td]:py-2",
-  /* 正文大图保持块级；Tailwind preflight 默认 img{display:block} 会把徽章竖排 */
+  /* 正文大图保持块级；徽章（shields 等）保持行内小图 */
   "[&_img]:max-w-full [&_img]:rounded-md",
-  "[&_p>img]:my-4 [&_p>img]:block",
-  "[&_a:has(>img)]:mr-1.5 [&_a:has(>img)]:inline-block [&_a:has(>img)]:align-middle",
-  "[&_a>img]:my-0 [&_a>img]:mr-0 [&_a>img]:inline-block [&_a>img]:max-h-5 [&_a>img]:w-auto [&_a>img]:align-middle",
-  "[&_h1_img]:my-0 [&_h1_img]:inline-block [&_h1_img]:max-h-5 [&_h1_img]:align-middle",
-  "[&_h2_img]:my-0 [&_h2_img]:inline-block [&_h2_img]:max-h-5 [&_h2_img]:align-middle",
-  "[&_h3_img]:my-0 [&_h3_img]:inline-block [&_h3_img]:max-h-5 [&_h3_img]:align-middle",
-  "[&_h1:has(img)]:flex [&_h1:has(img)]:flex-wrap [&_h1:has(img)]:items-center [&_h1:has(img)]:gap-x-2 [&_h1:has(img)]:gap-y-1",
-  "[&_h1:has(img)>br]:hidden",
-  "[&_p:has(img)]:flex [&_p:has(img)]:flex-wrap [&_p:has(img)]:items-center [&_p:has(img)]:justify-center [&_p:has(img)]:gap-x-2 [&_p:has(img)]:gap-y-1",
-  "[&_p:has(img)>br]:hidden",
-  "[&_h1[align=center]]:text-center [&_h1[align=center]:has(img)]:justify-center",
-  "[&_h2[align=center]]:text-center [&_p[align=center]]:text-center",
+  "[&_.readme-img-badge]:my-0 [&_.readme-img-badge]:inline-block [&_.readme-img-badge]:max-h-5 [&_.readme-img-badge]:w-auto [&_.readme-img-badge]:align-middle",
+  "[&_.readme-img-content]:my-4 [&_.readme-img-content]:block [&_.readme-img-content]:max-w-full",
+  "[&_.readme-img-hero]:my-2 [&_.readme-img-hero]:block [&_.readme-img-hero]:max-w-full [&_.readme-img-hero]:w-auto",
+  "[&_[align=center]_.readme-img-content]:mx-auto [&_[align=center]_.readme-img-hero]:mx-auto",
+  "[&_img.readme-img-content[align=center]]:mx-auto [&_img.readme-img-hero[align=center]]:mx-auto",
+  "[&_a:has(>.readme-img-badge)]:inline-block [&_a:has(>.readme-img-badge)]:align-middle",
+  "[&_a:has(>.readme-img-content)]:block [&_[align=center]_a:has(>.readme-img-content)]:mx-auto",
+  "[&_a:has(>.readme-img-hero)]:block [&_a:has(>.readme-img-hero)]:w-fit [&_[align=center]_a:has(>.readme-img-hero)]:mx-auto",
+  "[&_h1>a:has(>.readme-img-content)]:mx-auto [&_h1>a:has(>.readme-img-content)]:block [&_h1>a:has(>.readme-img-content)]:w-fit",
+  "[&_div[align=center]]:text-center",
+  "[&_div[align=center]_h1]:text-center [&_div[align=center]_h2]:text-center [&_div[align=center]_h3]:text-center [&_div[align=center]_p]:text-center",
+  "[&_h1:has(.readme-img-badge)]:flex [&_h1:has(.readme-img-badge)]:flex-wrap [&_h1:has(.readme-img-badge)]:items-center [&_h1:has(.readme-img-badge)]:justify-center [&_h1:has(.readme-img-badge)]:gap-x-1.5 [&_h1:has(.readme-img-badge)]:gap-y-1",
+  "[&_h1:has(.readme-img-badge)>br]:hidden",
+  "[&_p:has(.readme-img-badge):not(:has(.readme-img-hero))]:flex [&_p:has(.readme-img-badge):not(:has(.readme-img-hero))]:flex-wrap [&_p:has(.readme-img-badge):not(:has(.readme-img-hero))]:items-center [&_p:has(.readme-img-badge):not(:has(.readme-img-hero))]:justify-center [&_p:has(.readme-img-badge):not(:has(.readme-img-hero))]:gap-x-1.5 [&_p:has(.readme-img-badge):not(:has(.readme-img-hero))]:gap-y-1",
+  "[&_p:has(.readme-img-badge):not(:has(.readme-img-hero))>br]:hidden",
+  "[&_p:has(.readme-img-hero)]:flex [&_p:has(.readme-img-hero)]:flex-col [&_p:has(.readme-img-hero)]:items-center [&_p:has(.readme-img-hero)]:justify-center [&_p:has(.readme-img-hero)]:gap-y-2",
+  "[&_p:has(.readme-img-hero)>br]:hidden",
+  "[&_h1[align=center]]:text-center [&_h1[align=center]:has(.readme-img-badge)]:justify-center",
+  "[&_h2[align=center]]:text-center [&_h3[align=center]]:text-center",
+  "[&_p[align=center]]:text-center",
   "[&_hr]:border-border [&_hr]:my-8"
 )
 
@@ -83,11 +93,18 @@ function ReadmeMarkdownImage({
   alt,
   githubUrl,
   readmeBasePath,
+  loading = "lazy",
+  crossOrigin,
+  hideOnError = false,
 }: {
   src?: string
   alt?: string
   githubUrl?: string
   readmeBasePath?: string | null
+  loading?: "lazy" | "eager"
+  crossOrigin?: "anonymous"
+  /** 封面截图等场景：加载失败时不展示占位卡片 */
+  hideOnError?: boolean
 }) {
   const resolvedSrc = useMemo(
     () => resolveReadmeImageSrc(src, githubUrl, readmeBasePath),
@@ -103,7 +120,13 @@ function ReadmeMarkdownImage({
 
   if (!resolvedSrc) return null
 
+  const isHero = isReadmeHeroBadgeImage(src)
+  const isBadge = !isHero && isReadmeBadgeImage(src, alt)
+
   if (failed) {
+    if (hideOnError) {
+      return null
+    }
     return (
       <div className="border-border bg-muted/30 my-4 flex flex-col items-center gap-2 rounded-lg border border-dashed px-4 py-6 text-center">
         <ImageOff className="text-muted-foreground size-8" aria-hidden />
@@ -122,8 +145,12 @@ function ReadmeMarkdownImage({
       key={retryKey}
       src={resolvedSrc}
       alt={alt ?? ""}
-      loading="lazy"
-      className="inline-block max-w-full align-middle rounded-md"
+      loading={loading}
+      crossOrigin={crossOrigin}
+      className={cn(
+        "max-w-full rounded-md align-middle",
+        isBadge ? "readme-img-badge" : isHero ? "readme-img-hero" : "readme-img-content"
+      )}
       onError={() => setFailed(true)}
     />
   )
@@ -137,6 +164,9 @@ export type MarkdownContentProps = {
   enableHeadingAnchors?: boolean
   /** 允许 README 内嵌 HTML（rehype-raw）；Release 等场景保持 false。 */
   enableHtml?: boolean
+  imageLoading?: "lazy" | "eager"
+  imageCrossOrigin?: "anonymous"
+  hideImageErrors?: boolean
 }
 
 export function MarkdownContent({
@@ -146,6 +176,9 @@ export function MarkdownContent({
   onReadmeNavigate,
   enableHeadingAnchors = true,
   enableHtml = false,
+  imageLoading = "lazy",
+  imageCrossOrigin,
+  hideImageErrors = false,
 }: MarkdownContentProps) {
   const enableReadmeNav = Boolean(githubUrl && onReadmeNavigate)
   const headingIdAssigner = useMemo(() => createHeadingIdAssigner(), [content])
@@ -187,6 +220,24 @@ export function MarkdownContent({
           alt={alt}
           githubUrl={githubUrl}
           readmeBasePath={readmeBasePath}
+          loading={imageLoading}
+          crossOrigin={imageCrossOrigin}
+          hideOnError={hideImageErrors}
+        />
+      )
+    : undefined
+
+  const sourceComponent = githubUrl
+    ? ({
+        srcSet,
+        srcset,
+        media,
+        ...props
+      }: SourceHTMLAttributes<HTMLSourceElement> & { srcset?: string }) => (
+        <source
+          {...props}
+          media={media}
+          srcSet={resolveReadmeSrcSet(srcSet ?? srcset, githubUrl, readmeBasePath)}
         />
       )
     : undefined
@@ -199,6 +250,7 @@ export function MarkdownContent({
         components={{
           ...headingComponents,
           ...(imgComponent ? { img: imgComponent } : {}),
+          ...(sourceComponent ? { source: sourceComponent } : {}),
           a: ({ href, children, ...props }) => {
             const repoPath =
               enableReadmeNav && githubUrl

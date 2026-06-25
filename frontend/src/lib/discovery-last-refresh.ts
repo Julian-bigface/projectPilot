@@ -1,6 +1,6 @@
 import { DISCOVERY_CHANNELS, type DiscoveryChannelId } from "@/types/discovery"
 
-export const DISCOVERY_REFRESH_COOLDOWN_MS = 5 * 60 * 1000
+export const DISCOVERY_REFRESH_COOLDOWN_MS = 60 * 60 * 1000
 
 /** 侧栏展示「上次刷新」的频道；主题探索 / 最受欢迎不展示 */
 export const DISCOVERY_SIDEBAR_REFRESH_CHANNELS = [
@@ -90,7 +90,7 @@ export function shouldUseDiscoveryFreshFetch(
   return !isDiscoveryChannelInRefreshCooldown(channelId)
 }
 
-/** 发现侧栏「上次刷新」：5 分钟内「刚刚」；5 分钟～1 小时按 15 分钟粒度；之后按小时/天/周等显示。 */
+/** 发现侧栏「上次刷新」：1 小时内「刚刚」；1 小时～1 天按小时；之后按天/周等显示。 */
 export function formatDiscoveryRefreshRelative(iso: string | null | undefined): string {
   if (!iso?.trim()) {
     return "—"

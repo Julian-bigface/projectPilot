@@ -1,3 +1,11 @@
+/** 标签管理「分类」Tab 双栏容器高度 */
+export const TAG_CATEGORY_DUAL_PANEL_HEIGHT =
+  "h-[min(72vh,760px)] max-h-[min(72vh,760px)]"
+
+/** 双栏面板外壳（高度由父级 `TAG_CATEGORY_DUAL_PANEL_HEIGHT` 约束） */
+export const TAG_CATEGORY_PANEL_SHELL_CLASS =
+  "border-border bg-card flex h-full min-h-0 flex-col rounded-lg border"
+
 /** 标签分类双栏滚动区：与资料库侧栏文件夹树 nav 一致 */
 export const TAG_CATEGORY_NAV_CLASS = "min-h-0 flex-1 overflow-y-auto px-2 py-2"
 

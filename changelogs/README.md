@@ -42,6 +42,15 @@
 
 ## 索引（按时间倒序）
 
+- [2026-06-25 **风格库视觉解构可编辑** + **整套 AI 调整**（`/cover-styles/refine`、详情头入口、解构 textarea 自适应）](./CHANGELOG_2026-06-25.md)
+- [2026-06-22 **发现列表批量翻译** + **README picture/srcset** + **分段翻译 424** + **内容工厂风格库 Phase 2/2.5**（CRUD、参考图 vision、风格库 UI 精修）](./CHANGELOG_2026-06-22.md)
+- [2026-06-17 **AI 封面 Phase 1 实现**（generate-ai-cover、5 内置风格、设置生图测试、前端 Key 门禁）](./CHANGELOG_2026-06-17.md)
+- [2026-06-15 **内容工厂封面空白修复**（视口内离屏截图、像素空白检测、PNG 尺寸校验）](./CHANGELOG_2026-06-15.md)
+- [2026-06-13 **README 封面比例选择器**（预览区右下角悬浮钮、多组输出像素预设）](./CHANGELOG_2026-06-13.md)
+- [2026-06-12 **内容工厂 README 首屏封面**（浏览器 `html-to-image`、1242×1660、图片代理、左右留白 40px）](./CHANGELOG_2026-06-12.md)
+- [2026-06-04 **RedBox 分析报告**（推荐工作台借鉴、AI 落盘与 Skill 对照）](./CHANGELOG_2026-06-04.md)
+- [2026-06-02 **P0 标签 AI 分类**（LLM 设置 + suggest/apply API + 标签管理 AI 整理对话框）](./CHANGELOG_2026-06-02.md)
+- [2026-06-01 **桌面 v0.1.2**（dist 同步、WebView 缓存、sidecar 端口抢占、**外链导航拦截**）](./CHANGELOG_2026-06-01.md)
 - [2026-05-31 **欢迎页 PAT 门控** + **账户菜单** + **Token 弹窗** + **主题循环钮** + **默认进入上次项目库** + 发现列表/主题探索等](./CHANGELOG_2026-05-31.md)
 - [2026-05-30 **发现中心**（五频道、无限滚动、顶栏/刷新策略）+ **README 右侧目录** + Release Tab 行布局/说明 pill 精修](./CHANGELOG_2026-05-30.md)
 - [2026-05-27 **项目库层级**（`/libraries` 首页、scoped API、文件夹包、README 同仓切换、Release Tab 附件 Popover）](./CHANGELOG_2026-05-27.md)

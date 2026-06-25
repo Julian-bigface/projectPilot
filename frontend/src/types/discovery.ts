@@ -6,6 +6,13 @@ export type DiscoveryChannelId =
 
 export type TrendingRange = "daily" | "weekly" | "monthly"
 
+export type DiscoveryRepoDelta = {
+  stars: number | null
+  forks: number | null
+  rank: number | null
+  is_new: boolean
+}
+
 export type DiscoveryRepo = {
   rank: number
   full_name: string
@@ -20,6 +27,7 @@ export type DiscoveryRepo = {
   owner_login: string | null
   owner_avatar_url: string | null
   pushed_at: string | null
+  delta?: DiscoveryRepoDelta | null
 }
 
 export type DiscoveryTopicSearchMeta = {
@@ -39,6 +47,7 @@ export type DiscoveryPage = {
   fetched_at: string
   source: "rss" | "github_search"
   search_meta?: DiscoveryTopicSearchMeta | null
+  baseline_at?: string | null
 }
 
 export type FetchDiscoveryParams = {

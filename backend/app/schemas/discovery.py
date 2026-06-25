@@ -18,6 +18,16 @@ class DiscoveryTopicSearchMetaRead(BaseModel):
     translation_failed: bool = False
 
 
+class DiscoveryRepoDeltaRead(BaseModel):
+    stars: int | None = None
+    forks: int | None = None
+    rank: int | None = Field(
+        default=None,
+        description="排名变化：正数表示上升（如 10→5 为 +5）",
+    )
+    is_new: bool = False
+
+
 class DiscoveryRepoRead(BaseModel):
     rank: int = Field(..., ge=1)
     full_name: str
@@ -32,6 +42,7 @@ class DiscoveryRepoRead(BaseModel):
     owner_login: str | None = None
     owner_avatar_url: str | None = None
     pushed_at: datetime | None = None
+    delta: DiscoveryRepoDeltaRead | None = None
 
 
 class DiscoveryPageRead(BaseModel):
@@ -43,6 +54,10 @@ class DiscoveryPageRead(BaseModel):
     fetched_at: datetime
     source: DiscoverySource
     search_meta: DiscoveryTopicSearchMetaRead | None = None
+    baseline_at: datetime | None = Field(
+        default=None,
+        description="趋势上一期快照时间；无快照时为 null",
+    )
 
 
 class DiscoveryEnrichEntry(BaseModel):

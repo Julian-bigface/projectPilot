@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react"
@@ -13,6 +14,7 @@ import {
   type LibraryBrowseFilterState,
   type TagMatchMode,
 } from "@/lib/library-project-filters"
+import { useProjectLibraryId } from "@/context/project-library"
 import { useLibrarySelection } from "@/context/library-selection"
 
 type LibraryBrowseFiltersContextValue = LibraryBrowseFilterState & {
@@ -38,7 +40,21 @@ const EMPTY: LibraryBrowseFilterState = {
 
 export function LibraryBrowseFiltersProvider({ children }: { children: ReactNode }) {
   const { libraryScope } = useLibrarySelection()
+  const libraryId = useProjectLibraryId()
   const [state, setState] = useState<LibraryBrowseFilterState>(EMPTY)
+  const prevLibraryIdRef = useRef<number | null>(null)
+
+  /** 切换项目库时清空筛选：标签 id 为库内自增，不能跨库沿用 */
+  useEffect(() => {
+    if (libraryId == null) {
+      prevLibraryIdRef.current = null
+      return
+    }
+    if (prevLibraryIdRef.current !== null && prevLibraryIdRef.current !== libraryId) {
+      setState(EMPTY)
+    }
+    prevLibraryIdRef.current = libraryId
+  }, [libraryId])
 
   const folderFilterDisabled =
     libraryScope.kind === "uncategorized" || libraryScope.kind === "no_tags"

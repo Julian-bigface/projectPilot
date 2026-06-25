@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api import content_factory as content_factory_module
 from app.api import folder_bundle as folder_bundle_module
 from app.api import folders as folders_router_module
 from app.api import library as library_router_module
@@ -42,6 +43,9 @@ scoped_router.include_router(
 )
 scoped_router.include_router(
     library_projects_module.router, prefix="/projects", tags=["projects"]
+)
+scoped_router.include_router(
+    content_factory_module.router, prefix="/content-factory", tags=["content-factory"]
 )
 router.include_router(scoped_router)
 

@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
-from app.schemas.project import ProjectRead
+from app.schemas.project import ProjectRead, TagBrief
 
 
 class FolderTreeNode(BaseModel):
     id: int
     name: str
+    tags: list[TagBrief] = []
     children: list[FolderTreeNode]
     projects: list[ProjectRead]
 

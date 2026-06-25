@@ -15,6 +15,12 @@ from app.services.discovery_cache import (
     trending_feed_cache_key,
 )
 from app.services.discovery_enrich import repo_from_rss_stub
+from app.services.discovery_snapshot import (
+    apply_trending_deltas,
+    compute_trending_deltas,
+    load_feed_snapshot,
+    rotate_feed_snapshot,
+)
 
 TRENDING_RSS_BASE = "https://mshibanami.github.io/GitHubTrendingRSS"
 _GITHUB_LINK_RE = re.compile(r"github\.com/([^/]+)/([^/?#]+)")
@@ -97,6 +103,7 @@ async def load_trending_feed(
         if cached is not None:
             return cached
 
+    await rotate_feed_snapshot(db, cache_key)
     xml_text = await fetch_trending_rss_xml(time_range)
     all_items = parse_trending_rss_xml(xml_text)
     await set_feed_cache(db, cache_key, all_items)
@@ -111,11 +118,20 @@ async def fetch_trending_page(
     per_page: int,
     fresh: bool = False,
 ) -> DiscoveryPageRead:
+    cache_key = trending_feed_cache_key(time_range)
     all_items = await load_trending_feed(db, time_range, fresh=fresh)
     total = len(all_items)
     start = (page - 1) * per_page
     end = start + per_page
     page_items = all_items[start:end]
+
+    baseline_at: datetime | None = None
+    snapshot = await load_feed_snapshot(db, cache_key)
+    if snapshot is not None:
+        previous_entries, baseline_at = snapshot
+        deltas = compute_trending_deltas(all_items, previous_entries)
+        page_items = apply_trending_deltas(page_items, deltas)
+
     return DiscoveryPageRead(
         items=page_items,
         page=page,
@@ -124,4 +140,5 @@ async def fetch_trending_page(
         total_count=total,
         fetched_at=datetime.now(UTC),
         source="rss",
+        baseline_at=baseline_at,
     )

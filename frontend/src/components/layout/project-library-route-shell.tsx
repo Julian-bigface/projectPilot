@@ -22,15 +22,17 @@ async function fetchProjectLibrary(id: number): Promise<ProjectLibrary> {
 export function ProjectLibraryRouteShell({ children }: { children: ReactNode }) {
   const { libraryId: libraryIdParam } = useParams()
   const libraryId = Number(libraryIdParam)
-
-  if (!Number.isFinite(libraryId) || libraryId <= 0) {
-    return <Navigate to="/libraries" replace />
-  }
+  const libraryIdValid = Number.isFinite(libraryId) && libraryId > 0
 
   const query = useQuery({
     queryKey: ["project-libraries", libraryId],
     queryFn: () => fetchProjectLibrary(libraryId),
+    enabled: libraryIdValid,
   })
+
+  if (!libraryIdValid) {
+    return <Navigate to="/libraries" replace />
+  }
 
   if (query.isLoading) {
     return (

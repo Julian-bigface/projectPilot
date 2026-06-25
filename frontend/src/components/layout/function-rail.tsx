@@ -1,7 +1,8 @@
-import { LayoutGrid, Library, TrendingUp } from "lucide-react"
+import { Factory, LayoutGrid, Library, TrendingUp } from "lucide-react"
 import { NavLink, useLocation } from "react-router"
 
 import { RailUserMenu } from "@/components/layout/rail-user-menu"
+import { contentFactoryEntryHref } from "@/lib/content-factory-path"
 import { cn } from "@/lib/utils"
 
 const railBtn =
@@ -37,6 +38,15 @@ export function FunctionRail() {
         title="发现"
       >
         <TrendingUp className="size-[18px]" aria-hidden />
+      </NavLink>
+      <NavLink
+        to={contentFactoryEntryHref()}
+        className={({ isActive }) =>
+          cn(railBtn, (isActive || pathname.includes("/content-factory")) && "active")
+        }
+        title="内容工厂"
+      >
+        <Factory className="size-[18px]" aria-hidden />
       </NavLink>
       <NavLink to="/projects/board" className={({ isActive }) => cn(railBtn, isActive && "active")} title="看板">
         <LayoutGrid className="size-[18px]" aria-hidden />

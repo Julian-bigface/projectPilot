@@ -15,7 +15,13 @@ from app.services.discovery_search import (
     build_most_popular_query,
     build_topic_query,
 )
+from app.services.discovery_snapshot import (
+    TrendingSnapshotEntry,
+    apply_trending_deltas,
+    compute_trending_deltas,
+)
 from app.services.discovery_trending import parse_trending_rss_xml, trending_rss_url
+from app.services.discovery_cache import MOST_POPULAR_FEED_TTL, TRENDING_FEED_TTL
 
 SAMPLE_RSS = """<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
@@ -35,8 +41,84 @@ SAMPLE_RSS = """<?xml version="1.0" encoding="UTF-8"?>
 </rss>
 """
 
+SAMPLE_RSS_V2 = """<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Trending</title>
+    <item>
+      <title>new/repo</title>
+      <link>https://github.com/new/repo</link>
+      <description>⭐ 100 | 🍴 1</description>
+    </item>
+    <item>
+      <title>foo/bar</title>
+      <link>https://github.com/foo/bar</link>
+      <description>⭐ 1,300 | 🍴 60</description>
+    </item>
+  </channel>
+</rss>
+"""
 
-def test_trending_rss_url():
+
+def test_trending_and_most_popular_ttl_one_hour():
+    assert TRENDING_FEED_TTL.total_seconds() == 3600
+    assert MOST_POPULAR_FEED_TTL.total_seconds() == 3600
+
+
+def test_compute_trending_deltas():
+    current = parse_trending_rss_xml(SAMPLE_RSS_V2)
+    previous = [
+        TrendingSnapshotEntry(full_name="foo/bar", rank=1, stars=1234, forks=56),
+    ]
+    deltas = compute_trending_deltas(current, previous)
+    assert deltas["foo/bar"].stars == 66
+    assert deltas["foo/bar"].forks == 4
+    assert deltas["foo/bar"].rank == -1
+    assert deltas["new/repo"].is_new is True
+    assert deltas["new/repo"].rank is None
+
+
+def test_apply_trending_deltas():
+    items = parse_trending_rss_xml(SAMPLE_RSS_V2)
+    previous = [TrendingSnapshotEntry(full_name="foo/bar", rank=1, stars=1234, forks=56)]
+    deltas = compute_trending_deltas(items, previous)
+    merged = apply_trending_deltas(items, deltas)
+    foo = next(item for item in merged if item.full_name == "foo/bar")
+    assert foo.delta is not None
+    assert foo.delta.stars == 66
+
+
+@pytest.mark.asyncio
+async def test_trending_baseline_after_second_fetch(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    call = 0
+
+    async def fake_fetch(_time_range: str) -> str:
+        nonlocal call
+        call += 1
+        return SAMPLE_RSS if call == 1 else SAMPLE_RSS_V2
+
+    monkeypatch.setattr(
+        "app.services.discovery_trending.fetch_trending_rss_xml",
+        fake_fetch,
+    )
+
+    res1 = await client.get("/discovery/trending?range=daily&fresh=true")
+    assert res1.status_code == 200
+    assert res1.json()["baseline_at"] is None
+
+    res2 = await client.get("/discovery/trending?range=daily&fresh=true")
+    assert res2.status_code == 200
+    data2 = res2.json()
+    assert data2["baseline_at"] is not None
+    foo = next(item for item in data2["items"] if item["full_name"] == "foo/bar")
+    assert foo["delta"]["stars"] == 66
+    assert foo["delta"]["rank"] == -1
+    new_item = next(item for item in data2["items"] if item["full_name"] == "new/repo")
+    assert new_item["delta"]["is_new"] is True
+
+
     assert trending_rss_url("weekly") == (
         "https://mshibanami.github.io/GitHubTrendingRSS/weekly/all.xml"
     )

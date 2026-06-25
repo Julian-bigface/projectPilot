@@ -1,5 +1,5 @@
 import { useCallback } from "react"
-import { useSearchParams } from "react-router"
+import { useLocation, useSearchParams } from "react-router"
 
 import { DiscoveryRepoReadmeTab } from "@/components/discovery/discovery-repo-readme-tab"
 import { DiscoveryRepoReleasesTab } from "@/components/discovery/discovery-repo-releases-tab"
@@ -20,8 +20,9 @@ export type DiscoveryRepoDetailTabsProps = {
   repo: string
   discoveryRepo: DiscoveryRepo
   importedProjectId?: number | null
-  fromPath?: string
-  onImport?: () => void
+  onCollect?: () => void
+  onUncollect?: () => void
+  uncollecting?: boolean
 }
 
 const TAB_LABELS: Record<ProjectDetailTab, string> = {
@@ -35,9 +36,11 @@ export function DiscoveryRepoDetailTabs({
   repo,
   discoveryRepo,
   importedProjectId = null,
-  fromPath,
-  onImport,
+  onCollect,
+  onUncollect,
+  uncollecting = false,
 }: DiscoveryRepoDetailTabsProps) {
+  const location = useLocation()
   const [searchParams, setSearchParams] = useSearchParams()
   const tab = parseProjectDetailTab(searchParams.get("tab"))
 
@@ -54,10 +57,10 @@ export function DiscoveryRepoDetailTabs({
           }
           return params
         },
-        { replace: true }
+        { replace: true, state: location.state }
       )
     },
-    [setSearchParams]
+    [location.state, setSearchParams]
   )
 
   const githubUrl = discoveryRepo.github_url || discoveryRepo.html_url
@@ -98,21 +101,22 @@ export function DiscoveryRepoDetailTabs({
         <div className="border-border bg-muted/20 rounded-xl border border-dashed px-6 py-10 text-center">
           {importedProjectId ? (
             <>
-              <p className="text-muted-foreground text-sm">已收录，可在项目详情中编辑笔记。</p>
+              <p className="text-muted-foreground text-sm">已收藏，可在项目详情中编辑笔记。</p>
               <div className="mt-4 flex justify-center">
                 <DiscoveryLibraryStarButton
                   importedProjectId={importedProjectId}
-                  fromPath={fromPath}
-                  showImportedLabel
+                  onUncollect={onUncollect}
+                  uncollecting={uncollecting}
+                  showCollectedLabel
                 />
               </div>
             </>
           ) : (
             <>
-              <p className="text-muted-foreground text-sm">加入资料库后可编辑笔记。</p>
-              {onImport ? (
-                <Button type="button" variant="outline" size="sm" className="mt-4" onClick={onImport}>
-                  加入资料库
+              <p className="text-muted-foreground text-sm">收藏后可编辑笔记。</p>
+              {onCollect ? (
+                <Button type="button" variant="outline" size="sm" className="mt-4" onClick={onCollect}>
+                  收藏
                 </Button>
               ) : null}
             </>

@@ -16,6 +16,7 @@ import {
 import { FolderTreePicker } from "@/components/library/folder-tree-picker"
 import { Label } from "@/components/ui/label"
 import { parseApiErrorMessage } from "@/lib/api-error"
+import { importDiscoveryRepo } from "@/lib/discovery-collect"
 import { invalidateProjectRelated } from "@/lib/invalidate-project-queries"
 import { collectFolderFilterEntries } from "@/lib/library-tree"
 import { plApiPath } from "@/lib/pl-api"
@@ -107,33 +108,13 @@ export function ImportToLibraryDialog({
       }
       const existing = await checkDuplicate(libraryId, repo.full_name)
       if (existing) {
-        throw new Error(`该库已收录 ${repo.full_name}`)
+        throw new Error(`该库已收藏 ${repo.full_name}`)
       }
-      const body: Record<string, unknown> = {
-        github_url: repo.github_url,
-        name: repo.name,
-        full_name: repo.full_name,
-        description: repo.description,
-        stars: repo.stars,
-        forks: repo.forks,
-        language: repo.language,
-        state: "未体验",
-      }
-      if (folderId !== "none") {
-        body.folder_id = Number(folderId)
-      }
-      const res = await fetch(plApiPath(libraryId, "/projects"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      })
-      if (!res.ok) {
-        throw new Error(await parseApiErrorMessage(res))
-      }
-      return (await res.json()) as Project
+      const folder = folderId !== "none" ? Number(folderId) : null
+      return importDiscoveryRepo(repo, libraryId, folder)
     },
     onSuccess: async (project) => {
-      toast.success("已加入资料库", {
+      toast.success("已收藏", {
         description: project.full_name,
       })
       await invalidateProjectRelated(queryClient, project.id, project)
@@ -142,7 +123,7 @@ export function ImportToLibraryDialog({
       onOpenChange(false)
     },
     onError: (err) => {
-      toast.error(err instanceof Error ? err.message : "导入失败")
+      toast.error(err instanceof Error ? err.message : "收藏失败")
     },
   })
 
@@ -150,11 +131,11 @@ export function ImportToLibraryDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>加入资料库</DialogTitle>
+          <DialogTitle>收藏到资料库</DialogTitle>
           <DialogDescription>
             {repo ? (
               <>
-                将 <span className="font-mono">{repo.full_name}</span> 收录到所选项目库。
+                选择项目库与文件夹，将 <span className="font-mono">{repo.full_name}</span> 加入资料库。
               </>
             ) : (
               "选择目标项目库与文件夹。"
@@ -221,10 +202,10 @@ export function ImportToLibraryDialog({
             {importMutation.isPending ? (
               <>
                 <Loader2 className="size-4 animate-spin" aria-hidden />
-                导入中…
+                收藏中…
               </>
             ) : (
-              "确认加入"
+              "确认收藏"
             )}
           </Button>
         </DialogFooter>

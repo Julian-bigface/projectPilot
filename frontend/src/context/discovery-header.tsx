@@ -23,12 +23,19 @@ export type DiscoveryHeaderState = {
   enrichBusy: boolean
   listBusy: boolean
   fetchBusy: boolean
+  descriptionTranslateBusy: boolean
+  descriptionTranslateActive: boolean
+  /** 翻译目标语言展示名，如「简体中文」 */
+  descriptionTranslateTargetLabel: string | null
+  /** 当前列表是否有可译简介 */
+  descriptionTranslateAvailable: boolean
 }
 
 type DiscoveryHeaderContextValue = {
   header: DiscoveryHeaderState | null
   setHeader: (header: DiscoveryHeaderState | null) => void
   refreshRef: React.MutableRefObject<(() => void) | null>
+  translateDescriptionsRef: React.MutableRefObject<(() => void) | null>
   shouldFreshFetch: (channelId: DiscoveryChannelId) => boolean
   markChannelFresh: (channelId: DiscoveryChannelId) => void
   markAllChannelsFresh: () => void
@@ -48,6 +55,7 @@ export function DiscoveryHeaderProvider({ children }: { children: ReactNode }) {
   const [header, setHeaderState] = useState<DiscoveryHeaderState | null>(null)
   const [lastRefresh, setLastRefresh] = useState<DiscoveryLastRefreshMap>(() => readDiscoveryLastRefresh())
   const refreshRef = useRef<(() => void) | null>(null)
+  const translateDescriptionsRef = useRef<(() => void) | null>(null)
   const pendingFreshChannelsRef = useRef(new Set<DiscoveryChannelId>())
   const activeRefreshRef = useRef<(() => Promise<void>) | null>(null)
 
@@ -107,6 +115,7 @@ export function DiscoveryHeaderProvider({ children }: { children: ReactNode }) {
       header,
       setHeader,
       refreshRef,
+      translateDescriptionsRef,
       shouldFreshFetch,
       markChannelFresh,
       markAllChannelsFresh,

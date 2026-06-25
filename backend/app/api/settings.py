@@ -14,10 +14,28 @@ from app.schemas.settings_github import (
     GithubTestRequest,
     GithubTestResponse,
 )
+from app.schemas.settings_ai import (
+    AiConfigRead,
+    AiConfigUpdate,
+    AiSettingsRead,
+    AiSettingsUpdate,
+    AiTestResponse,
+)
 from app.schemas.settings_translation import (
     TranslationSettingsRead,
     TranslationSettingsUpdate,
     TranslationTestResponse,
+)
+from app.services.llm import SUPPORTED_PROVIDERS, get_llm_provider
+from app.services.llm.provider import LlmError
+from app.services.recommend_image import ImageProviderError, probe_image_connection
+from app.services.settings_ai import (
+    load_ai_config,
+    resolve_ai_runtime_config,
+    resolve_ai_settings_for_read,
+    set_default_provider_api_key,
+    update_ai_config,
+    update_ai_settings,
 )
 from app.services.github_client import fetch_github_user, test_github_token
 from app.services.settings_github import (
@@ -141,3 +159,121 @@ async def post_translation_test(db: AsyncSession = Depends(get_db)) -> Translati
     except Exception as err:
         return TranslationTestResponse(ok=False, message=f"翻译测试失败：{err}")
     return TranslationTestResponse(ok=True, sample=sample, message="翻译通道可用")
+
+
+@router.get("/ai/config", response_model=AiConfigRead)
+async def get_ai_config(db: AsyncSession = Depends(get_db)) -> AiConfigRead:
+    return await load_ai_config(db)
+
+
+@router.put("/ai/config", response_model=AiConfigRead)
+async def put_ai_config(
+    body: AiConfigUpdate, db: AsyncSession = Depends(get_db)
+) -> AiConfigRead:
+    try:
+        return await update_ai_config(db, body)
+    except ValueError as err:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)) from err
+    finally:
+        await db.commit()
+
+
+@router.get("/ai", response_model=AiSettingsRead)
+async def get_ai_settings(db: AsyncSession = Depends(get_db)) -> AiSettingsRead:
+    provider, preset_id, base_url, model, has_key, preview, length = await resolve_ai_settings_for_read(
+        db
+    )
+    return AiSettingsRead(
+        provider=provider,
+        preset_id=preset_id,
+        base_url=base_url,
+        model=model,
+        has_api_key=has_key,
+        api_key_preview=preview,
+        api_key_length=length,
+        supported_providers=list(SUPPORTED_PROVIDERS),
+    )
+
+
+@router.put("/ai", response_model=AiSettingsRead)
+async def put_ai_settings(
+    body: AiSettingsUpdate, db: AsyncSession = Depends(get_db)
+) -> AiSettingsRead:
+    payload = body.model_dump(exclude_unset=True)
+    kwargs: dict = {
+        "provider": payload.get("provider"),
+        "preset_id": payload.get("preset_id"),
+        "base_url": payload.get("base_url"),
+        "model": payload.get("model"),
+    }
+    if "api_key" in payload:
+        raw = payload["api_key"]
+        await set_default_provider_api_key(
+            db, raw if raw is not None and str(raw).strip() else None
+        )
+    await update_ai_settings(db, **kwargs)
+    await db.commit()
+    provider, preset_id, base_url, model, has_key, preview, length = await resolve_ai_settings_for_read(
+        db
+    )
+    return AiSettingsRead(
+        provider=provider,
+        preset_id=preset_id,
+        base_url=base_url,
+        model=model,
+        has_api_key=has_key,
+        api_key_preview=preview,
+        api_key_length=length,
+        supported_providers=list(SUPPORTED_PROVIDERS),
+    )
+
+
+@router.post("/ai/test", response_model=AiTestResponse)
+async def post_ai_test(
+    provider_id: str | None = None,
+    scenario_id: str | None = None,
+    db: AsyncSession = Depends(get_db),
+) -> AiTestResponse:
+    provider_name, base_url, model, api_key = await resolve_ai_runtime_config(
+        db,
+        provider_id=provider_id,
+        scenario_id=scenario_id,
+    )
+    if not api_key:
+        return AiTestResponse(
+            ok=False,
+            message="未配置 API Key：请在设置中保存 MiniMax / 其他供应商的 API Key",
+        )
+
+    if scenario_id == "recommend_image":
+        try:
+            await probe_image_connection(
+                base_url=base_url,
+                api_key=api_key,
+                model=model,
+            )
+        except ImageProviderError as err:
+            return AiTestResponse(ok=False, message=str(err))
+        except Exception as err:
+            return AiTestResponse(ok=False, message=f"生图测试失败：{err}")
+        return AiTestResponse(ok=True, message="生图 API 连接可用", sample="image_ok")
+
+    provider = get_llm_provider(
+        provider_name,
+        base_url=base_url,
+        api_key=api_key,
+        model=model,
+    )
+    try:
+        sample = await provider.complete(
+            system="You are a helpful assistant.",
+            user='Reply with exactly the word OK.',
+            temperature=0,
+            max_tokens=16,
+            json_mode=False,
+        )
+    except LlmError as err:
+        return AiTestResponse(ok=False, message=str(err))
+    except Exception as err:
+        return AiTestResponse(ok=False, message=f"LLM 测试失败：{err}")
+    return AiTestResponse(ok=True, sample=sample.strip(), message="LLM 连接可用")

@@ -1,20 +1,26 @@
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query"
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Loader2, ArrowUp } from "lucide-react"
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { useLocation } from "react-router"
+import { toast } from "sonner"
 
 import { DiscoveryChannelToolbar, discoveryChannelHasToolbar } from "@/components/discovery/discovery-channel-toolbar"
 import { DiscoveryRepoCard } from "@/components/discovery/discovery-repo-card"
 import { DiscoveryRepoListSkeleton } from "@/components/discovery/discovery-repo-list-skeleton"
-import { ImportToLibraryDialog } from "@/components/discovery/import-to-library-dialog"
 import { GithubSettingsButton } from "@/components/common/github-settings-link"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useDiscoveryHeader } from "@/context/discovery-header"
 import { enrichDiscoveryRepos, fetchDiscoveryPage, parseTrendingRange } from "@/lib/discovery-api"
+import {
+  readDiscoveryEnrichCache,
+  repoNeedsDiscoveryEnrich,
+  writeDiscoveryEnrichCache,
+} from "@/lib/discovery-enrich-cache"
 import { formatDiscoveryTopicSearchMeta } from "@/lib/discovery-topic-search-meta"
 import { pickDiscoveryRepoDescription } from "@/lib/discovery-display"
 import { fetchDiscoveryImportedMap } from "@/lib/discovery-imported-map"
+import { useDiscoveryCollectDialogs } from "@/hooks/use-discovery-collect-dialogs"
 import {
   clearDiscoveryListScroll,
   readDiscoveryListScroll,
@@ -25,6 +31,14 @@ import {
   marksDiscoveryRefreshOnPassiveLoad,
   shouldUseDiscoveryFreshFetch,
 } from "@/lib/discovery-last-refresh"
+import {
+  fetchTranslationSettings,
+  TRANSLATION_TARGET_LANG_LABELS,
+} from "@/lib/settings-translation"
+import {
+  buildDescriptionTranslateJobs,
+  translateDescriptionsBatch,
+} from "@/lib/translate-plain-text-batch"
 import { cn } from "@/lib/utils"
 import {
   DEFAULT_TOPIC,
@@ -80,7 +94,7 @@ function mergeEnrichedRepo(base: DiscoveryRepo, enriched: DiscoveryRepo): Discov
 }
 
 function repoNeedsEnrich(repo: DiscoveryRepo): boolean {
-  return repo.stars === 0 || !repo.language?.trim()
+  return repoNeedsDiscoveryEnrich(repo)
 }
 
 function enrichKeyFromItems(repos: DiscoveryRepo[]): string {
@@ -92,6 +106,7 @@ export function DiscoveryRepoList({
   locationOverride,
   inactive = false,
 }: DiscoveryRepoListProps) {
+  const queryClient = useQueryClient()
   const routerLocation = useLocation()
   const listLocation = locationOverride ?? routerLocation
   const scrollKey = `${listLocation.pathname}${listLocation.search}`
@@ -104,8 +119,6 @@ export function DiscoveryRepoList({
   const topic = listSearchParams.get("topic")?.trim() || DEFAULT_TOPIC
   const perPage = 20
 
-  const [importRepo, setImportRepo] = useState<DiscoveryRepo | null>(null)
-  const [importOpen, setImportOpen] = useState(false)
   const freshRefreshRef = useRef(false)
   const enrichGenerationRef = useRef(0)
   const lastMarkedUpdatedAtRef = useRef(0)
@@ -114,9 +127,17 @@ export function DiscoveryRepoList({
   const [enrichedByName, setEnrichedByName] = useState<Map<string, DiscoveryRepo>>(() => new Map())
   const [enrichBusy, setEnrichBusy] = useState(false)
 
+  const [translatedByName, setTranslatedByName] = useState<Map<string, string>>(() => new Map())
+  const [translatingFullNames, setTranslatingFullNames] = useState<Set<string>>(() => new Set())
+  const [showTranslated, setShowTranslated] = useState(false)
+  const [translateBusy, setTranslateBusy] = useState(false)
+  const translateGenerationRef = useRef(0)
+  const lastIncrementalTranslateKeyRef = useRef<string | null>(null)
+
   const {
     setHeader,
     refreshRef,
+    translateDescriptionsRef,
     shouldFreshFetch,
     clearFreshFlag,
     registerActiveRefresh,
@@ -186,7 +207,9 @@ export function DiscoveryRepoList({
   }, [query.isSuccess, query.isFetching, query.data, paramsKey])
 
   const isSwitching = paramsKey !== settledParamsKey
-  const showListSkeleton = isSwitching || query.isPending
+  const hasStableData =
+    query.isSuccess && !query.isFetching && query.data != null && query.data.pages.length > 0
+  const showListSkeleton = query.isPending || (isSwitching && !hasStableData)
 
   /** 被动加载成功后更新侧栏「上次刷新」，使 5 分钟冷却与「刚刚」文案生效 */
   useEffect(() => {
@@ -231,6 +254,8 @@ export function DiscoveryRepoList({
   }, [showListSkeleton, query.data])
 
   const totalCount = showListSkeleton ? null : query.data?.pages[0]?.total_count
+  const baselineAt = showListSkeleton ? null : query.data?.pages[0]?.baseline_at
+  const showTrendingDelta = channelId === "trending" && baselineAt != null
 
   const enrichScopeKey = useMemo(
     () => `${channelId}:${range}:${enrichKeyFromItems(items)}`,
@@ -238,19 +263,48 @@ export function DiscoveryRepoList({
   )
 
   useEffect(() => {
-    if (channelId !== "trending" || items.length === 0 || showListSkeleton) {
+    if (channelId !== "trending" || items.length === 0 || showListSkeleton || inactive) {
       enrichGenerationRef.current += 1
-      setEnrichedByName(new Map())
+      if (channelId !== "trending") {
+        setEnrichedByName(new Map())
+      }
       setEnrichBusy(false)
       return
     }
 
     const generation = enrichGenerationRef.current + 1
     enrichGenerationRef.current = generation
-    setEnrichedByName(new Map())
-    setEnrichBusy(true)
 
-    const batches = chunk(items, ENRICH_BATCH_SIZE)
+    const hydrated = new Map<string, DiscoveryRepo>()
+    const pending: DiscoveryRepo[] = []
+
+    for (const repo of items) {
+      const cached = readDiscoveryEnrichCache(queryClient, repo.full_name)
+      if (cached) {
+        const merged = mergeEnrichedRepo(repo, cached)
+        hydrated.set(repo.full_name, merged)
+        if (!repoNeedsEnrich(merged)) {
+          continue
+        }
+        pending.push(merged)
+        continue
+      }
+      if (repoNeedsEnrich(repo)) {
+        pending.push(repo)
+      } else {
+        hydrated.set(repo.full_name, repo)
+        writeDiscoveryEnrichCache(queryClient, repo)
+      }
+    }
+
+    setEnrichedByName(hydrated)
+    setEnrichBusy(pending.length > 0)
+
+    if (pending.length === 0) {
+      return
+    }
+
+    const batches = chunk(pending, ENRICH_BATCH_SIZE)
 
     void (async () => {
       try {
@@ -269,7 +323,9 @@ export function DiscoveryRepoList({
               for (const base of batch) {
                 const enriched = byName.get(base.full_name)
                 if (enriched) {
-                  next.set(base.full_name, mergeEnrichedRepo(base, enriched))
+                  const merged = mergeEnrichedRepo(base, enriched)
+                  next.set(base.full_name, merged)
+                  writeDiscoveryEnrichCache(queryClient, merged)
                 }
               }
               return next
@@ -288,7 +344,7 @@ export function DiscoveryRepoList({
     return () => {
       enrichGenerationRef.current += 1
     }
-  }, [channelId, enrichScopeKey, showListSkeleton])
+  }, [channelId, enrichScopeKey, inactive, items, queryClient, showListSkeleton])
 
   const displayItems = useMemo(() => {
     if (channelId !== "trending") {
@@ -296,6 +352,229 @@ export function DiscoveryRepoList({
     }
     return items.map((repo) => enrichedByName.get(repo.full_name) ?? repo)
   }, [channelId, enrichedByName, items])
+
+  const displayItemsKey = useMemo(() => enrichKeyFromItems(displayItems), [displayItems])
+
+  const translationSettingsQuery = useQuery({
+    queryKey: ["settings", "translation"],
+    queryFn: fetchTranslationSettings,
+    staleTime: 60_000,
+  })
+
+  const descriptionTranslateTargetLabel = useMemo(() => {
+    const lang = translationSettingsQuery.data?.target_lang ?? "zh-CN"
+    return TRANSLATION_TARGET_LANG_LABELS[lang] ?? lang
+  }, [translationSettingsQuery.data?.target_lang])
+
+  const descriptionTranslateAvailable = useMemo(() => {
+    return displayItems.some((repo) => Boolean(pickDiscoveryRepoDescription(repo.description)?.trim()))
+  }, [displayItems])
+
+  useEffect(() => {
+    translateGenerationRef.current += 1
+    setTranslatedByName(new Map())
+    setTranslatingFullNames(new Set())
+    setShowTranslated(false)
+    setTranslateBusy(false)
+    lastIncrementalTranslateKeyRef.current = null
+  }, [paramsKey])
+
+  const markFullNamesTranslating = useCallback((fullNamesBySource: Map<string, string[]>) => {
+    setTranslatingFullNames((prev) => {
+      const next = new Set(prev)
+      for (const names of fullNamesBySource.values()) {
+        for (const fullName of names) {
+          next.add(fullName)
+        }
+      }
+      return next
+    })
+  }, [])
+
+  const applySourceTranslation = useCallback(
+    (fullNamesBySource: Map<string, string[]>, source: string, translated: string) => {
+      const fullNames = fullNamesBySource.get(source) ?? []
+      if (fullNames.length === 0) {
+        return
+      }
+      setTranslatedByName((prev) => {
+        const next = new Map(prev)
+        for (const fullName of fullNames) {
+          next.set(fullName, translated)
+        }
+        return next
+      })
+      setTranslatingFullNames((prev) => {
+        const next = new Set(prev)
+        for (const fullName of fullNames) {
+          next.delete(fullName)
+        }
+        return next
+      })
+    },
+    []
+  )
+
+  const clearSourceTranslating = useCallback(
+    (fullNamesBySource: Map<string, string[]>, source: string) => {
+      const fullNames = fullNamesBySource.get(source) ?? []
+      if (fullNames.length === 0) {
+        return
+      }
+      setTranslatingFullNames((prev) => {
+        const next = new Set(prev)
+        for (const fullName of fullNames) {
+          next.delete(fullName)
+        }
+        return next
+      })
+    },
+    []
+  )
+
+  const runDescriptionTranslate = useCallback(
+    async (options?: { onlyMissing?: boolean }) => {
+      const alreadyTranslated = options?.onlyMissing
+        ? new Set(translatedByName.keys())
+        : new Set<string>()
+
+      const { fullNamesBySource, uniqueSources } = buildDescriptionTranslateJobs(
+        displayItems.map((repo) => ({
+          fullName: repo.full_name,
+          source: pickDiscoveryRepoDescription(repo.description),
+        })),
+        alreadyTranslated
+      )
+
+      if (uniqueSources.length === 0) {
+        if (!options?.onlyMissing) {
+          setShowTranslated(true)
+        }
+        return
+      }
+
+      let generation = translateGenerationRef.current
+      if (!options?.onlyMissing) {
+        generation = translateGenerationRef.current + 1
+        translateGenerationRef.current = generation
+      }
+
+      setShowTranslated(true)
+      markFullNamesTranslating(fullNamesBySource)
+      setTranslateBusy(true)
+
+      let failedCount = 0
+
+      try {
+        await translateDescriptionsBatch(uniqueSources, {
+          batchSize: ENRICH_BATCH_SIZE,
+          onSourceComplete: (source, translated) => {
+            if (translateGenerationRef.current !== generation) {
+              return
+            }
+            applySourceTranslation(fullNamesBySource, source, translated)
+          },
+          onSourceFailed: (source) => {
+            if (translateGenerationRef.current !== generation) {
+              return
+            }
+            failedCount += 1
+            clearSourceTranslating(fullNamesBySource, source)
+          },
+        })
+
+        if (translateGenerationRef.current !== generation) {
+          return
+        }
+
+        if (failedCount > 0) {
+          toast.error(`${failedCount} 条简介翻译失败，已保留原文`)
+        }
+      } catch (err) {
+        if (translateGenerationRef.current !== generation) {
+          return
+        }
+        setTranslatingFullNames(new Set())
+        toast.error((err as Error).message || "翻译失败")
+      } finally {
+        if (translateGenerationRef.current === generation) {
+          setTranslateBusy(false)
+        }
+      }
+    },
+    [
+      applySourceTranslation,
+      clearSourceTranslating,
+      displayItems,
+      markFullNamesTranslating,
+      translatedByName,
+    ]
+  )
+
+  const handleToggleTranslate = useCallback(() => {
+    if (showTranslated) {
+      if (translateBusy) {
+        translateGenerationRef.current += 1
+        setTranslatingFullNames(new Set())
+        setTranslateBusy(false)
+      }
+      setShowTranslated(false)
+      return
+    }
+    const allCached = displayItems.every((repo) => {
+      const source = pickDiscoveryRepoDescription(repo.description)
+      if (!source?.trim()) {
+        return true
+      }
+      return translatedByName.has(repo.full_name)
+    })
+    if (allCached && translatedByName.size > 0) {
+      setShowTranslated(true)
+      return
+    }
+    void runDescriptionTranslate()
+  }, [
+    displayItems,
+    runDescriptionTranslate,
+    showTranslated,
+    translateBusy,
+    translatedByName,
+  ])
+
+  useEffect(() => {
+    if (inactive || showListSkeleton || !showTranslated) {
+      return
+    }
+    if (lastIncrementalTranslateKeyRef.current === displayItemsKey) {
+      return
+    }
+
+    const hasMissing = displayItems.some((repo) => {
+      const source = pickDiscoveryRepoDescription(repo.description)
+      return (
+        Boolean(source?.trim()) &&
+        !translatedByName.has(repo.full_name) &&
+        !translatingFullNames.has(repo.full_name)
+      )
+    })
+
+    if (!hasMissing) {
+      lastIncrementalTranslateKeyRef.current = displayItemsKey
+      return
+    }
+
+    lastIncrementalTranslateKeyRef.current = displayItemsKey
+    void runDescriptionTranslate({ onlyMissing: true })
+  }, [
+    displayItems,
+    displayItemsKey,
+    inactive,
+    runDescriptionTranslate,
+    showListSkeleton,
+    showTranslated,
+    translatedByName,
+    translatingFullNames,
+  ])
 
   const enrichingTrending = channelId === "trending" && enrichBusy && !showListSkeleton
 
@@ -541,8 +820,14 @@ export function DiscoveryRepoList({
   const handleRefresh = useCallback(async () => {
     freshRefreshRef.current = true
     enrichGenerationRef.current += 1
+    translateGenerationRef.current += 1
     setEnrichedByName(new Map())
     setEnrichBusy(false)
+    setTranslatedByName(new Map())
+    setTranslatingFullNames(new Set())
+    setShowTranslated(false)
+    setTranslateBusy(false)
+    lastIncrementalTranslateKeyRef.current = null
     scrollRestoredRef.current = true
     clearDiscoveryListScroll(scrollKey)
     lastScrollTopRef.current = 0
@@ -566,16 +851,18 @@ export function DiscoveryRepoList({
     staleTime: 60_000,
   })
 
-  const openImport = (repo: DiscoveryRepo) => {
-    setImportRepo(repo)
-    setImportOpen(true)
-  }
+  const { requestCollect, requestUncollect, dialogs, uncollectingProjectId } =
+    useDiscoveryCollectDialogs()
 
   const headerListBusy = query.isFetching && showListSkeleton
   const headerEnrichBusy = enrichingTrending
 
   refreshRef.current = () => {
     void handleRefresh()
+  }
+
+  translateDescriptionsRef.current = () => {
+    handleToggleTranslate()
   }
 
   const topicSearchMeta = showListSkeleton ? null : query.data?.pages[0]?.search_meta
@@ -601,15 +888,23 @@ export function DiscoveryRepoList({
       enrichBusy: headerEnrichBusy,
       listBusy: headerListBusy,
       fetchBusy: query.isFetching,
+      descriptionTranslateBusy: translateBusy,
+      descriptionTranslateActive: showTranslated,
+      descriptionTranslateTargetLabel,
+      descriptionTranslateAvailable,
     })
     return () => setHeader(null)
   }, [
     channelId,
+    descriptionTranslateAvailable,
+    descriptionTranslateTargetLabel,
     headerMeta,
     headerEnrichBusy,
     headerListBusy,
     query.isFetching,
     setHeader,
+    showTranslated,
+    translateBusy,
   ])
 
   const listBody = () => {
@@ -651,6 +946,16 @@ export function DiscoveryRepoList({
         <ul className="flex flex-col gap-3">
           {displayItems.map((repo) => {
             const cardEnriching = enrichingTrending && repoNeedsEnrich(repo)
+            const sourceDescription = pickDiscoveryRepoDescription(repo.description)
+            const hasSource = Boolean(sourceDescription?.trim())
+            const translatedDescription = showTranslated
+              ? translatedByName.get(repo.full_name)
+              : undefined
+            const descriptionTranslating =
+              showTranslated &&
+              hasSource &&
+              !translatedByName.has(repo.full_name) &&
+              translatingFullNames.has(repo.full_name)
             return (
               <li key={`${repo.full_name}-${repo.rank}`}>
                 <DiscoveryRepoCard
@@ -658,8 +963,18 @@ export function DiscoveryRepoList({
                   fromPath={fromPath}
                   onBeforeNavigate={saveScrollNow}
                   importedProjectId={importedMapQuery.data?.get(repo.full_name) ?? null}
-                  onImport={openImport}
+                  onCollect={requestCollect}
+                  onUncollect={requestUncollect}
+                  uncollecting={
+                    uncollectingProjectId != null &&
+                    uncollectingProjectId === importedMapQuery.data?.get(repo.full_name)
+                  }
                   enriching={cardEnriching}
+                  showDelta={showTrendingDelta}
+                  descriptionOverride={
+                    showTranslated && translatedDescription ? translatedDescription : undefined
+                  }
+                  descriptionTranslating={descriptionTranslating}
                 />
               </li>
             )
@@ -688,13 +1003,7 @@ export function DiscoveryRepoList({
 
   return (
     <>
-      <ImportToLibraryDialog
-        repo={importRepo}
-        open={importOpen}
-        onOpenChange={setImportOpen}
-        onImported={() => void importedMapQuery.refetch()}
-      />
-
+      {dialogs}
       <div className="flex min-h-0 flex-1 flex-col">
         {discoveryChannelHasToolbar(channelId) ? (
           <div className="mb-4 shrink-0">

@@ -10,7 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.schemas.discovery import DiscoveryRepoRead
 
-TRENDING_FEED_TTL = timedelta(minutes=30)
+TRENDING_FEED_TTL = timedelta(hours=1)
+MOST_POPULAR_FEED_TTL = timedelta(hours=1)
 SEARCH_FEED_TTL = timedelta(minutes=10)
 REPO_CACHE_TTL = timedelta(hours=6)
 

@@ -1,24 +1,45 @@
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import func, select
+from fastapi.responses import StreamingResponse
+from sqlalchemy import delete, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_project_library
 from app.core.database import get_db
 from app.models.project_library import ProjectLibrary
+from app.models.project import Project
 from app.models.tag import FolderTag, ProjectTag, Tag, TagCategory
 from app.schemas.tag import TagCreate, TagRead, TagUpdate
+from app.schemas.tag_ai import (
+    TagCategoryApplyRequest,
+    TagCategoryApplyResponse,
+    TagCategorySuggestRequest,
+    TagCategorySuggestResponse,
+)
+from app.services.llm.provider import LlmError
+from app.services.tag_category_suggest import (
+    _prepare_suggest_context,
+    apply_tag_category_suggestions,
+    iter_suggest_tag_categories,
+    iter_suggest_tag_categories_from_context,
+    suggest_tag_categories,
+)
 from app.services.tag_normalize import normalize_tag_name
 
 router = APIRouter()
 
 
-async def _tag_usage_count(db: AsyncSession, tag_id: int) -> int:
+async def _tag_usage_counts(db: AsyncSession, tag_id: int) -> tuple[int, int]:
     pc = int(
         await db.scalar(
-            select(func.count()).select_from(ProjectTag).where(ProjectTag.tag_id == tag_id)
+            select(func.count())
+            .select_from(ProjectTag)
+            .join(Project, ProjectTag.project_id == Project.id)
+            .where(ProjectTag.tag_id == tag_id, Project.deleted_at.is_(None))
         )
         or 0
     )
@@ -28,7 +49,24 @@ async def _tag_usage_count(db: AsyncSession, tag_id: int) -> int:
         )
         or 0
     )
-    return pc + fc
+    return pc, fc
+
+
+def _tag_read_from_row(
+    tag: Tag,
+    category_name: str | None,
+    project_usage: int,
+    folder_usage: int,
+) -> TagRead:
+    return TagRead(
+        id=tag.id,
+        name=tag.name,
+        category_id=tag.category_id,
+        category_name=category_name,
+        project_usage_count=project_usage,
+        folder_usage_count=folder_usage,
+        usage_count=project_usage + folder_usage,
+    )
 
 
 @router.get("", response_model=list[TagRead])
@@ -41,6 +79,8 @@ async def list_tags(
 ) -> list[TagRead]:
     project_usage_sq = (
         select(ProjectTag.tag_id.label("tid"), func.count(ProjectTag.project_id).label("uc"))
+        .join(Project, ProjectTag.project_id == Project.id)
+        .where(Project.deleted_at.is_(None))
         .group_by(ProjectTag.tag_id)
         .subquery()
     )
@@ -54,7 +94,8 @@ async def list_tags(
         select(
             Tag,
             TagCategory.name,
-            func.coalesce(project_usage_sq.c.uc, 0) + func.coalesce(folder_usage_sq.c.uc, 0),
+            func.coalesce(project_usage_sq.c.uc, 0),
+            func.coalesce(folder_usage_sq.c.uc, 0),
         )
         .outerjoin(TagCategory, Tag.category_id == TagCategory.id)
         .outerjoin(project_usage_sq, Tag.id == project_usage_sq.c.tid)
@@ -71,14 +112,8 @@ async def list_tags(
 
     rows = (await db.execute(stmt)).all()
     return [
-        TagRead(
-            id=tag.id,
-            name=tag.name,
-            category_id=tag.category_id,
-            category_name=cn,
-            usage_count=int(uc or 0),
-        )
-        for tag, cn, uc in rows
+        _tag_read_from_row(tag, cn, int(pu or 0), int(fu or 0))
+        for tag, cn, pu, fu in rows
     ]
 
 
@@ -112,12 +147,82 @@ async def create_tag(
     if tag.category_id is not None:
         c = await db.get(TagCategory, tag.category_id)
         cn = c.name if c else None
-    return TagRead(
-        id=tag.id,
-        name=tag.name,
-        category_id=tag.category_id,
-        category_name=cn,
-        usage_count=0,
+    return _tag_read_from_row(tag, cn, 0, 0)
+
+
+@router.post("/suggest-categories", response_model=TagCategorySuggestResponse)
+async def post_suggest_tag_categories(
+    body: TagCategorySuggestRequest,
+    db: AsyncSession = Depends(get_db),
+    library: ProjectLibrary = Depends(get_project_library),
+) -> TagCategorySuggestResponse:
+    try:
+        return await suggest_tag_categories(
+            db,
+            library_id=library.id,
+            tag_ids=body.tag_ids,
+            include_new_categories=body.include_new_categories,
+        )
+    except ValueError as err:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)) from err
+    except LlmError as err:
+        raise HTTPException(
+            status_code=status.HTTP_424_FAILED_DEPENDENCY,
+            detail=str(err),
+        ) from err
+
+
+@router.post("/suggest-categories/stream")
+async def post_suggest_tag_categories_stream(
+    body: TagCategorySuggestRequest,
+    db: AsyncSession = Depends(get_db),
+    library: ProjectLibrary = Depends(get_project_library),
+) -> StreamingResponse:
+    """NDJSON 流式返回：每完成一批 LLM 请求即推送 proposals。"""
+    try:
+        ctx = await _prepare_suggest_context(
+            db,
+            library_id=library.id,
+            tag_ids=body.tag_ids,
+            include_new_categories=body.include_new_categories,
+        )
+    except ValueError as err:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)) from err
+    except LlmError as err:
+        raise HTTPException(
+            status_code=status.HTTP_424_FAILED_DEPENDENCY,
+            detail=str(err),
+        ) from err
+
+    async def generate():
+        try:
+            async for event in iter_suggest_tag_categories_from_context(ctx):
+                yield (event.model_dump_json() + "\n").encode("utf-8")
+        except Exception as err:
+            payload = json.dumps({"event": "error", "detail": str(err)}, ensure_ascii=False)
+            yield (payload + "\n").encode("utf-8")
+
+    return StreamingResponse(
+        generate(),
+        media_type="application/x-ndjson",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
+
+
+@router.post("/apply-category-suggestions", response_model=TagCategoryApplyResponse)
+async def post_apply_tag_category_suggestions(
+    body: TagCategoryApplyRequest,
+    db: AsyncSession = Depends(get_db),
+    library: ProjectLibrary = Depends(get_project_library),
+) -> TagCategoryApplyResponse:
+    return await apply_tag_category_suggestions(
+        db,
+        library_id=library.id,
+        items=body.items,
     )
 
 
@@ -160,20 +265,14 @@ async def patch_tag(
         ) from err
     await db.refresh(tag)
 
-    uc = await _tag_usage_count(db, tag_id)
+    pu, fu = await _tag_usage_counts(db, tag_id)
 
     cn = None
     if tag.category_id is not None:
         c = await db.get(TagCategory, tag.category_id)
         cn = c.name if c else None
 
-    return TagRead(
-        id=tag.id,
-        name=tag.name,
-        category_id=tag.category_id,
-        category_name=cn,
-        usage_count=uc,
-    )
+    return _tag_read_from_row(tag, cn, pu, fu)
 
 
 @router.delete("/{tag_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -186,12 +285,7 @@ async def delete_tag(
     if tag is None or tag.project_library_id != library.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="标签不存在")
 
-    n = await _tag_usage_count(db, tag_id)
-    if n > 0:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=f"仍有 {n} 处（项目或文件夹）使用该标签，请先解除关联",
-        )
-
+    await db.execute(delete(ProjectTag).where(ProjectTag.tag_id == tag_id))
+    await db.execute(delete(FolderTag).where(FolderTag.tag_id == tag_id))
     await db.delete(tag)
     await db.commit()

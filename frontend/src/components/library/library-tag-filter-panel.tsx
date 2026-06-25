@@ -5,12 +5,16 @@ import { useMemo, useState } from "react"
 import { Input } from "@/components/ui/input"
 import { PopoverContent } from "@/components/ui/popover"
 import { useLibraryBrowseFilters } from "@/context/library-browse-filters"
+import { useAutoScrollbarVisible } from "@/hooks/use-auto-scrollbar-visible"
 import { usePlApi } from "@/hooks/use-pl-api"
 import { collectTagIdsFromProjects } from "@/lib/library-project-filters"
 import { domainTagPillClass } from "@/lib/topic-pill-palette"
 import { cn } from "@/lib/utils"
 import type { Project } from "@/types/project"
 import type { TagCategory, TagWithUsage } from "@/types/tag"
+
+/** 资料库浏览：标签筛选 Popover 双栏主体高度（左分类 / 右标签列表一致） */
+const LIBRARY_TAG_FILTER_BODY_HEIGHT = "h-[min(60vh,400px)] max-h-[min(60vh,400px)]"
 
 async function parseErrorMessage(res: Response): Promise<string> {
   try {
@@ -52,6 +56,8 @@ export function LibraryTagFilterPanel({ scopeProjects }: LibraryTagFilterPanelPr
   const [activeGroup, setActiveGroup] = useState<TagGroupKey>("all")
   const [tagSearch, setTagSearch] = useState("")
   const plApi = usePlApi()
+  const { scrollbarVisible: navScrollbarVisible, onScroll: onNavScroll } = useAutoScrollbarVisible()
+  const { scrollbarVisible: tagsScrollbarVisible, onScroll: onTagsScroll } = useAutoScrollbarVisible()
 
   const tagsQuery = useQuery({
     queryKey: ["tags", plApi.libraryId],
@@ -137,8 +143,16 @@ export function LibraryTagFilterPanel({ scopeProjects }: LibraryTagFilterPanelPr
       onOpenAutoFocus={(e) => e.preventDefault()}
     >
       <div>
-        <div className="flex min-h-[280px]">
-          <nav className="border-border w-36 shrink-0 border-r py-1" aria-label="标签分组">
+        <div className={cn("flex min-h-0 items-stretch", LIBRARY_TAG_FILTER_BODY_HEIGHT)}>
+          <nav
+            className={cn(
+              "border-border min-h-0 w-36 shrink-0 overflow-y-auto overscroll-contain border-r py-1 main-auto-scrollbar",
+              navScrollbarVisible && "main-auto-scrollbar--visible"
+            )}
+            aria-label="标签分组"
+            onScroll={onNavScroll}
+            onWheel={(e) => e.stopPropagation()}
+          >
             {sidebarRows.map((row) => (
               <button
                 key={row.key}
@@ -158,8 +172,8 @@ export function LibraryTagFilterPanel({ scopeProjects }: LibraryTagFilterPanelPr
             ))}
           </nav>
 
-          <div className="flex min-w-0 flex-1 flex-col">
-            <div className="border-border border-b px-3 py-2">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <div className="border-border shrink-0 border-b px-3 py-2">
               <div className="relative">
                 <Search
                   className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
@@ -184,7 +198,14 @@ export function LibraryTagFilterPanel({ scopeProjects }: LibraryTagFilterPanelPr
               ) : null}
             </div>
 
-            <div className="max-h-[240px] min-h-0 flex-1 overflow-y-auto px-3 py-2">
+            <div
+              className={cn(
+                "min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-2 main-auto-scrollbar",
+                tagsScrollbarVisible && "main-auto-scrollbar--visible"
+              )}
+              onScroll={onTagsScroll}
+              onWheel={(e) => e.stopPropagation()}
+            >
               {tagsQuery.isLoading ? (
                 <p className="text-muted-foreground text-xs">加载标签…</p>
               ) : tagsQuery.isError ? (
@@ -225,7 +246,7 @@ export function LibraryTagFilterPanel({ scopeProjects }: LibraryTagFilterPanelPr
           <select
             value={tagMatchMode}
             onChange={(e) => setTagMatchMode(e.target.value as "any" | "all")}
-            className="border-input bg-background h-8 rounded-md border px-2 text-xs shadow-sm"
+            className="border-input bg-background h-7 rounded-md border px-2 text-xs shadow-none"
             aria-label="标签匹配逻辑"
           >
             <option value="any">任意符合（或）</option>

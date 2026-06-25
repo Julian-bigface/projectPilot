@@ -4,6 +4,7 @@ import {
   readmeDirectoryFromBasePath,
   readmeRawBaseUrl,
   resolveReadmeImageSrc,
+  resolveReadmeSrcSet,
 } from "@/lib/readme-media-resolve"
 
 const GITHUB = "https://github.com/octocat/Hello-World"
@@ -23,13 +24,13 @@ describe("readmeDirectoryFromBasePath", () => {
 describe("readmeRawBaseUrl", () => {
   it("builds root raw base", () => {
     expect(readmeRawBaseUrl(GITHUB, "README.md")).toBe(
-      "https://github.com/octocat/Hello-World/raw/HEAD/"
+      "https://raw.githubusercontent.com/octocat/Hello-World/HEAD/"
     )
   })
 
   it("builds nested raw base", () => {
     expect(readmeRawBaseUrl(GITHUB, "docs/README.md")).toBe(
-      "https://github.com/octocat/Hello-World/raw/HEAD/docs/"
+      "https://raw.githubusercontent.com/octocat/Hello-World/HEAD/docs/"
     )
   })
 })
@@ -43,21 +44,34 @@ describe("resolveReadmeImageSrc", () => {
   it("resolves relative image at repo root", () => {
     const resolved = resolveReadmeImageSrc("./images/logo.png", GITHUB, "README.md")
     expect(resolved).toBe(
-      "https://github.com/octocat/Hello-World/raw/HEAD/images/logo.png"
+      "https://raw.githubusercontent.com/octocat/Hello-World/HEAD/images/logo.png"
     )
   })
 
   it("resolves relative image under nested README", () => {
     const resolved = resolveReadmeImageSrc("./img/a.png", GITHUB, "docs/README.md")
     expect(resolved).toBe(
-      "https://github.com/octocat/Hello-World/raw/HEAD/docs/img/a.png"
+      "https://raw.githubusercontent.com/octocat/Hello-World/HEAD/docs/img/a.png"
     )
   })
 
   it("resolves parent-relative paths", () => {
     const resolved = resolveReadmeImageSrc("../assets/x.png", GITHUB, "docs/README.md")
     expect(resolved).toBe(
-      "https://github.com/octocat/Hello-World/raw/HEAD/assets/x.png"
+      "https://raw.githubusercontent.com/octocat/Hello-World/HEAD/assets/x.png"
+    )
+  })
+})
+
+describe("resolveReadmeSrcSet", () => {
+  it("resolves picture source srcset entries", () => {
+    const resolved = resolveReadmeSrcSet(
+      "asset/deployment_modes_dark.png, asset/deployment_modes_light.png 2x",
+      "https://github.com/LMCache/LMCache",
+      "README.md"
+    )
+    expect(resolved).toBe(
+      "https://raw.githubusercontent.com/LMCache/LMCache/HEAD/asset/deployment_modes_dark.png, https://raw.githubusercontent.com/LMCache/LMCache/HEAD/asset/deployment_modes_light.png 2x"
     )
   })
 })

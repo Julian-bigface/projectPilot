@@ -61,6 +61,8 @@ export type TagActions = {
   onAssociate: (tag: TagWithUsage) => void
   onMoveCategory: (id: number, category_id: number | null) => void
   onDelete: (tag: TagWithUsage) => void
+  /** 双击标签：跳转资料库根目录并按该标签筛选 */
+  onBrowseByTag?: (tag: TagWithUsage) => void
 }
 
 export function chipAccentBgClass(tagColors: Record<number, number>, tagId: number): string {
@@ -69,6 +71,23 @@ export function chipAccentBgClass(tagColors: Record<number, number>, tagId: numb
     return ""
   }
   return TAG_ACCENT_BG[idx]
+}
+
+export function tagProjectUsageCount(tag: TagWithUsage): number {
+  return tag.project_usage_count ?? tag.usage_count
+}
+
+export function tagFolderUsageCount(tag: TagWithUsage): number {
+  return tag.folder_usage_count ?? 0
+}
+
+export function tagUsageCountTitle(tag: TagWithUsage): string | undefined {
+  const projects = tagProjectUsageCount(tag)
+  const folders = tagFolderUsageCount(tag)
+  if (folders > 0) {
+    return `项目 ${projects}，文件夹 ${folders}（筛选含文件夹内项目）`
+  }
+  return projects !== tag.usage_count ? `项目 ${projects}` : undefined
 }
 
 function TagChipInner({
@@ -80,6 +99,7 @@ function TagChipInner({
   accentBg: string
   muted?: boolean
 }) {
+  const projectCount = tagProjectUsageCount(tag)
   return (
     <>
       <span
@@ -98,7 +118,12 @@ function TagChipInner({
         >
           {tag.name}
         </span>
-        <span className="text-muted-foreground shrink-0 tabular-nums text-xs">{tag.usage_count}</span>
+        <span className="text-muted-foreground shrink-0 tabular-nums text-xs" title={tagUsageCountTitle(tag)}>
+          {projectCount}
+          {tagFolderUsageCount(tag) > 0 ? (
+            <span className="text-muted-foreground/70">+{tagFolderUsageCount(tag)}</span>
+          ) : null}
+        </span>
       </span>
     </>
   )
@@ -125,6 +150,14 @@ export function TagChipMenuContent({ tag, actions }: { tag: TagWithUsage; action
   const isDefaultColor = storedColor === undefined || storedColor === null
   return (
     <ContextMenuContent className="w-[13.5rem]">
+      {actions.onBrowseByTag ? (
+        <>
+          <ContextMenuItem onSelect={() => actions.onBrowseByTag?.(tag)}>
+            在资料库按此标签筛选
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+        </>
+      ) : null}
       <ContextMenuItem onSelect={() => actions.onAssociate(tag)}>查看标签关联素材</ContextMenuItem>
       <ContextMenuSeparator />
       <ContextMenuItem onSelect={() => actions.toggleFavorite(tag.id)}>
@@ -193,10 +226,29 @@ export function TagChipMenuContent({ tag, actions }: { tag: TagWithUsage; action
 
 export function TagChip({ tag, actions }: { tag: TagWithUsage; actions: TagActions }) {
   const accentBg = chipAccentBgClass(actions.tagColors, tag.id)
+  const canBrowse = Boolean(actions.onBrowseByTag)
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-        <span className="bg-background text-foreground border-border inline-flex min-w-[68px] max-w-[min(100%,10.8rem)] cursor-default items-stretch overflow-hidden rounded-md border text-sm shadow-sm">
+        <span
+          title={
+            canBrowse
+              ? `${tagUsageCountTitle(tag) ? `${tagUsageCountTitle(tag)}；` : ""}双击在资料库按此标签筛选`
+              : tagUsageCountTitle(tag)
+          }
+          className={cn(
+            "bg-background text-foreground border-border inline-flex min-w-[68px] max-w-[min(100%,10.8rem)] items-stretch overflow-hidden rounded-md border text-sm shadow-sm",
+            canBrowse ? "cursor-pointer" : "cursor-default"
+          )}
+          onDoubleClick={
+            canBrowse
+              ? (e) => {
+                  e.preventDefault()
+                  actions.onBrowseByTag?.(tag)
+                }
+              : undefined
+          }
+        >
           <TagChipInner tag={tag} accentBg={accentBg} />
         </span>
       </ContextMenuTrigger>
@@ -220,16 +272,28 @@ export function TagGridDragPreview({
   )
 }
 
+export type TagSelectOptions = {
+  additive: boolean
+  range: boolean
+}
+
+export type TagGridRowSelectHandler = (
+  options: TagSelectOptions,
+  visibleTagIds: number[]
+) => void
+
 export function TagGridRow({
   tag,
   actions,
   selected,
+  visibleTagIds,
   onSelect,
 }: {
   tag: TagWithUsage
   actions: TagActions
   selected: boolean
-  onSelect: (options: { additive: boolean }) => void
+  visibleTagIds: number[]
+  onSelect: TagGridRowSelectHandler
 }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: `tm-drag-${tag.id}`,
@@ -256,7 +320,10 @@ export function TagGridRow({
       if (Math.hypot(dx, dy) > 4) return
     }
     if (isDragging) return
-    onSelect({ additive: event.ctrlKey || event.metaKey })
+    onSelect(
+      { additive: event.ctrlKey || event.metaKey, range: event.shiftKey },
+      visibleTagIds
+    )
   }
 
   return (
@@ -273,10 +340,20 @@ export function TagGridRow({
           aria-pressed={selected}
           aria-label={`${tag.name}，用量 ${tag.usage_count}${selected ? "，已选中" : ""}`}
           onClick={handleClick}
+          onDoubleClick={
+            actions.onBrowseByTag
+              ? (e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  actions.onBrowseByTag?.(tag)
+                }
+              : undefined
+          }
+          title={actions.onBrowseByTag ? "双击在资料库按此标签筛选" : undefined}
           onKeyDown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault()
-              onSelect({ additive: e.ctrlKey || e.metaKey })
+              onSelect({ additive: e.ctrlKey || e.metaKey, range: e.shiftKey }, visibleTagIds)
             }
           }}
           className={cn(

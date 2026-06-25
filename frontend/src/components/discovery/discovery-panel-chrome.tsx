@@ -1,11 +1,12 @@
-import { RefreshCw } from "lucide-react"
+import { Languages, RefreshCw } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { useDiscoveryHeader } from "@/context/discovery-header"
 import { cn } from "@/lib/utils"
 
 export function DiscoveryPanelChrome() {
-  const { header, refreshRef } = useDiscoveryHeader()
+  const { header, refreshRef, translateDescriptionsRef } = useDiscoveryHeader()
 
   if (!header) {
     return (
@@ -16,6 +17,13 @@ export function DiscoveryPanelChrome() {
   }
 
   const spinRefresh = header.fetchBusy || header.enrichBusy
+  const translateBusy = header.descriptionTranslateBusy
+  const translateActive = header.descriptionTranslateActive
+  const targetLabel = header.descriptionTranslateTargetLabel ?? "目标语言"
+  const translateTitle = translateActive
+    ? "显示原文"
+    : `翻译简介（${targetLabel}）`
+  const translateDisabled = header.listBusy || !header.descriptionTranslateAvailable
 
   return (
     <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -41,6 +49,35 @@ export function DiscoveryPanelChrome() {
         >
           <RefreshCw className={cn("size-4", spinRefresh && "animate-spin")} aria-hidden />
         </Button>
+        <Tooltip delayDuration={300}>
+          <TooltipTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={cn(
+                "size-8 shadow-none",
+                translateActive && "text-primary"
+              )}
+              onClick={() => translateDescriptionsRef.current?.()}
+              disabled={translateDisabled}
+              aria-label={translateTitle}
+              aria-pressed={translateActive}
+            >
+              <Languages
+                className={cn("size-4", translateBusy && "animate-pulse")}
+                aria-hidden
+              />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="max-w-xs">
+            {translateBusy
+              ? "正在翻译列表简介，完成后逐条显示译文"
+              : translateActive
+                ? "点击恢复显示原文（译文仍保留在会话中）"
+                : `将当前列表中的仓库简介翻译为${targetLabel}（不保存）`}
+          </TooltipContent>
+        </Tooltip>
       </div>
     </div>
   )

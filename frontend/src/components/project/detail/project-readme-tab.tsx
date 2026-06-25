@@ -62,6 +62,20 @@ type ReadmeBlockChunk = {
 
 type ReadmeTranslateMode = "full" | "retry-failed"
 
+function resolveStuckReadmeChunks(chunks: ReadmeBlockChunk[]): ReadmeBlockChunk[] {
+  return chunks.map((chunk) => {
+    if (chunk.status === "done" && chunk.translated !== undefined) {
+      return chunk
+    }
+    return {
+      ...chunk,
+      status: "done" as const,
+      translated: chunk.source,
+      fallback: true,
+    }
+  })
+}
+
 export function ProjectReadmeTab({ project, enabled }: ProjectReadmeTabProps) {
   const queryClient = useQueryClient()
   const { syncState: readmeSyncState, defaultReadmeQuery, syncFromGithub } =
@@ -80,6 +94,7 @@ export function ProjectReadmeTab({ project, enabled }: ProjectReadmeTabProps) {
   const [tocEdgeHover, setTocEdgeHover] = useState(false)
   const [tocHeadings, setTocHeadings] = useState<MarkdownHeading[]>([])
   const translateRunRef = useRef(0)
+  const translateInFlightRef = useRef(false)
   const autoTranslateTriggeredRef = useRef(false)
   const readmeContentRef = useRef<HTMLDivElement>(null)
   const readmeLayoutRef = useRef<HTMLDivElement>(null)
@@ -116,6 +131,8 @@ export function ProjectReadmeTab({ project, enabled }: ProjectReadmeTabProps) {
       setEditing(false)
       setSaveError(null)
       setProgressiveChunks(null)
+      setTranslating(false)
+      translateInFlightRef.current = false
       translateRunRef.current += 1
     },
     [readmePath, view]
@@ -177,12 +194,28 @@ export function ProjectReadmeTab({ project, enabled }: ProjectReadmeTabProps) {
         toast.message("仅默认 README 支持机器翻译")
         return
       }
+      if (translateInFlightRef.current) {
+        return
+      }
+      translateInFlightRef.current = true
       const runId = ++translateRunRef.current
       setTranslating(true)
       setView("translated")
       setEditing(false)
       setRetranslateOpen(false)
       setProgressiveChunks(null)
+
+      const patchChunk = (
+        index: number,
+        patch: Partial<ReadmeBlockChunk> & Pick<ReadmeBlockChunk, "status">
+      ) => {
+        setProgressiveChunks(
+          (prev) =>
+            prev?.map((chunk, chunkIndex) =>
+              chunkIndex === index ? { ...chunk, ...patch } : chunk
+            ) ?? prev
+        )
+      }
 
       try {
         const sourceBlocks = await fetchReadmeBlocks(project.id)
@@ -235,6 +268,7 @@ export function ProjectReadmeTab({ project, enabled }: ProjectReadmeTabProps) {
 
         let failedBlockCount = 0
         let translatedRequestCount = 0
+        let firstErrorMessage: string | null = null
 
         for (let i = 0; i < sourceBlocks.length; i += 1) {
           if (runId !== translateRunRef.current) return
@@ -255,11 +289,7 @@ export function ProjectReadmeTab({ project, enabled }: ProjectReadmeTabProps) {
           }
           translatedRequestCount += 1
 
-          setProgressiveChunks((prev) =>
-            prev?.map((chunk, index) =>
-              index === i ? { ...chunk, status: "loading" } : chunk
-            ) ?? prev
-          )
+          patchChunk(i, { status: "loading" })
 
           try {
             const translated = await translateReadmeBlockWithRetry(project.id, source)
@@ -269,26 +299,22 @@ export function ProjectReadmeTab({ project, enabled }: ProjectReadmeTabProps) {
             } else {
               resultBlocks.push(translated)
             }
-            setProgressiveChunks((prev) =>
-              prev?.map((chunk, index) =>
-                index === i ? { ...chunk, status: "done", translated, fallback: false } : chunk
-              ) ?? prev
-            )
-          } catch {
+            patchChunk(i, { status: "done", translated, fallback: false })
+          } catch (err) {
             if (runId !== translateRunRef.current) return
             failedBlockCount += 1
+            const message = err instanceof Error ? err.message : "段落翻译失败"
+            firstErrorMessage ??= message
             if (mode === "retry-failed") {
               resultBlocks[i] = source
             } else {
               resultBlocks.push(source)
             }
-            setProgressiveChunks((prev) =>
-              prev?.map((chunk, index) =>
-                index === i
-                  ? { ...chunk, status: "done", translated: source, fallback: true }
-                  : chunk
-              ) ?? prev
-            )
+            patchChunk(i, {
+              status: "done",
+              translated: source,
+              fallback: true,
+            })
           }
         }
 
@@ -307,16 +333,33 @@ export function ProjectReadmeTab({ project, enabled }: ProjectReadmeTabProps) {
             toast.success("失败段落已重新翻译")
           }
         } else if (failedBlockCount > 0) {
-          toast.warning(`有 ${failedBlockCount} 段翻译失败，已保留原文；可稍后重试失败段落。`)
+          toast.warning(
+            firstErrorMessage
+              ? `有 ${failedBlockCount} 段翻译失败，已保留原文：${firstErrorMessage}`
+              : `有 ${failedBlockCount} 段翻译失败，已保留原文；可稍后重试失败段落。`
+          )
         } else {
           toast.success("README 翻译已完成")
         }
       } catch (err) {
         if (runId !== translateRunRef.current) return
-        toast.error(err instanceof Error ? err.message : "翻译失败")
+        const message = err instanceof Error ? err.message : "翻译失败"
+        toast.error(message)
+        setProgressiveChunks((prev) => (prev?.length ? resolveStuckReadmeChunks(prev) : null))
+        if (!project.readme_translated?.trim()) {
+          setView("source")
+          autoTranslateTriggeredRef.current = false
+        }
       } finally {
+        translateInFlightRef.current = false
         if (runId === translateRunRef.current) {
           setTranslating(false)
+          setProgressiveChunks((prev) => {
+            if (!prev?.some((chunk) => chunk.status === "loading" || chunk.status === "pending")) {
+              return prev
+            }
+            return resolveStuckReadmeChunks(prev)
+          })
         }
       }
     },
@@ -665,7 +708,12 @@ export function ProjectReadmeTab({ project, enabled }: ProjectReadmeTabProps) {
             onMouseMove={handleReadmeLayoutMouseMove}
             onMouseLeave={() => setTocEdgeHover(false)}
           >
-            <div ref={readmeContentRef} className="min-w-0 flex-1 outline-none">
+            <div
+              ref={readmeContentRef}
+              className="min-w-0 flex-1 outline-none"
+              data-readme-capture-root
+              data-readme-full-name={project.full_name}
+            >
               {view === "source" ? renderSource() : renderTranslated()}
             </div>
             {showToc ? (

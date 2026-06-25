@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -106,5 +106,11 @@ async def delete_tag_category(
     if cat is None or cat.project_library_id != library.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="分类不存在")
 
+    # 显式置空，避免 SQLite 未启用外键时标签 orphaned
+    await db.execute(
+        update(Tag)
+        .where(Tag.category_id == category_id, Tag.project_library_id == library.id)
+        .values(category_id=None)
+    )
     await db.delete(cat)
     await db.commit()

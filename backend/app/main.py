@@ -3,6 +3,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api.discovery import router as discovery_router
@@ -13,6 +14,8 @@ from app.api.translation import router as translation_router
 from app.core.config import settings
 from app.core.database import init_db
 
+_NO_STORE_HEADERS = {"Cache-Control": "no-cache, no-store, must-revalidate"}
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
@@ -20,7 +23,7 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="Project Pilot API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Project Pilot API", version="0.1.2", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -44,7 +47,7 @@ app.include_router(api_router)
 
 @app.get("/health")
 async def health() -> dict[str, str]:
-    return {"status": "ok"}
+    return {"status": "ok", "version": app.version}
 
 
 def _mount_static_if_configured() -> None:
@@ -53,7 +56,27 @@ def _mount_static_if_configured() -> None:
     static_path = Path(settings.static_dir)
     if not static_path.is_dir():
         return
-    app.mount("/", StaticFiles(directory=str(static_path), html=True), name="static")
+
+    index_html = static_path / "index.html"
+    assets_dir = static_path / "assets"
+
+    @app.get("/", include_in_schema=False)
+    async def spa_index() -> FileResponse:
+        return FileResponse(
+            index_html,
+            media_type="text/html",
+            headers=_NO_STORE_HEADERS,
+        )
+
+    if assets_dir.is_dir():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+
+    # Remaining root files (favicon, vite.svg, etc.)
+    app.mount(
+        "/",
+        StaticFiles(directory=str(static_path), html=False),
+        name="static-root",
+    )
 
 
 if settings.static_dir:

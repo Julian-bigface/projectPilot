@@ -20,4 +20,6 @@ class TagRead(BaseModel):
     name: str
     category_id: int | None = None
     category_name: str | None = None
-    usage_count: int = Field(0, ge=0)
+    project_usage_count: int = Field(0, ge=0, description="未删除项目上的关联数")
+    folder_usage_count: int = Field(0, ge=0, description="文件夹上的关联数")
+    usage_count: int = Field(0, ge=0, description="project_usage_count + folder_usage_count")

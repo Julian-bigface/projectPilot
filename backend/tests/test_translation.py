@@ -283,3 +283,33 @@ async def test_post_translate_text_ephemeral(
 async def test_post_translate_text_empty_rejected(client: AsyncClient) -> None:
     res = await client.post("/translation/translate-text", json={"content": "   "})
     assert res.status_code == 422
+
+
+async def test_post_readme_blocks_ephemeral(client: AsyncClient) -> None:
+    res = await client.post(
+        "/translation/readme-blocks",
+        json={"content": "# Title\n\nHello **world**"},
+    )
+    assert res.status_code == 200
+    blocks = res.json()["blocks"]
+    assert isinstance(blocks, list)
+    assert len(blocks) >= 1
+
+
+@pytest.mark.asyncio
+async def test_post_translate_readme_block_ephemeral(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def fake_block(_db, content: str) -> str:
+        return f"translated:{content[:20]}"
+
+    monkeypatch.setattr(
+        "app.api.translation.translate_readme_block_ephemeral",
+        fake_block,
+    )
+    res = await client.post(
+        "/translation/translate-readme-block",
+        json={"content": "Hello readme"},
+    )
+    assert res.status_code == 200
+    assert res.json()["translated"].startswith("translated:")

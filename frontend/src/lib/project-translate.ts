@@ -37,7 +37,10 @@ export async function translateReadmeBlock(
     body: JSON.stringify({ content }),
   })
   if (!res.ok) {
-    throw new Error(await parseApiErrorMessage(res))
+    const message = await parseApiErrorMessage(res)
+    const error = new Error(message) as Error & { httpStatus?: number }
+    error.httpStatus = res.status
+    throw error
   }
   const data = (await res.json()) as { translated: string }
   return data.translated
@@ -64,9 +67,16 @@ export async function translateReadmeBlockWithRetry(
       return await translateReadmeBlock(projectId, content)
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err))
-      if (attempt < maxAttempts - 1) {
-        await sleep(900 * (attempt + 1))
+      const httpStatus = (err as Error & { httpStatus?: number }).httpStatus
+      const retryable =
+        httpStatus !== 424 &&
+        (lastError.message.includes("限流") ||
+          lastError.message.includes("网络") ||
+          lastError.message.includes("稍后重试"))
+      if (!retryable || attempt >= maxAttempts - 1) {
+        break
       }
+      await sleep(900 * (attempt + 1))
     }
   }
   throw lastError ?? new Error("段落翻译失败")

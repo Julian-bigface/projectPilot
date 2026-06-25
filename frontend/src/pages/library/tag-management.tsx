@@ -10,17 +10,20 @@ import {
   useSensors,
 } from "@dnd-kit/core"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Plus, Search, Tag as TagIcon, Tags } from "lucide-react"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { Plus, Search, Tag as TagIcon, Tags, Wand2 } from "lucide-react"
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react"
 import { toast } from "sonner"
 
+import { TagAiSuggestDialog } from "@/components/library/tag-ai-suggest-dialog"
 import { TagCategorySidebar } from "@/components/library/tag-category-sidebar"
 import { TagCategoryTagGrid } from "@/components/library/tag-category-tag-grid"
+import { TAG_CATEGORY_DUAL_PANEL_HEIGHT } from "@/components/library/tag-category-styles"
 import {
   TagChip,
   TagGridDragPreview,
   UNCATEGORIZED_DROP_ID,
   type TagActions,
+  type TagSelectOptions,
 } from "@/components/library/tag-management-shared"
 import {
   AlertDialog,
@@ -44,6 +47,10 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { useLibraryBrowseFilters } from "@/context/library-browse-filters"
+import { useLibraryProjectPreview } from "@/context/library-project-preview"
+import { useLibrarySelection } from "@/context/library-selection"
+import { useProjectLibrary } from "@/context/project-library"
 import { usePlApi } from "@/hooks/use-pl-api"
 import { snapOverlayTopLeftToPointer } from "@/lib/dnd-modifiers"
 import type { TagCategory, TagWithUsage } from "@/types/tag"
@@ -152,6 +159,15 @@ function groupByFirstLetter(tags: TagWithUsage[]): { key: string; tags: TagWithU
 }
 
 export function TagManagementPage() {
+  const { library } = useProjectLibrary()
+  const { setLibraryScope } = useLibrarySelection()
+  const {
+    setSelectedTagIds: setBrowseSelectedTagIds,
+    setSearchQuery: setBrowseSearchQuery,
+    setSelectedFolderIds: setBrowseSelectedFolderIds,
+    setTagMatchMode: setBrowseTagMatchMode,
+  } = useLibraryBrowseFilters()
+  const { setPreviewProject } = useLibraryProjectPreview()
   const queryClient = useQueryClient()
   const plApi = usePlApi()
   const [search, setSearch] = useState("")
@@ -164,7 +180,11 @@ export function TagManagementPage() {
   const [renameCat, setRenameCat] = useState<TagCategory | null>(null)
   const [renameCatInput, setRenameCatInput] = useState("")
   const [deleteCategoryTarget, setDeleteCategoryTarget] = useState<TagCategory | null>(null)
-  const [deleteTarget, setDeleteTarget] = useState<TagWithUsage | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteDialogTag, setDeleteDialogTag] = useState<TagWithUsage | null>(null)
+  const [deleteDialogSubmitting, setDeleteDialogSubmitting] = useState(false)
+  const clearDeleteDialogTagTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const deleteDialogSubmittingRef = useRef(false)
   const [favoriteIds, setFavoriteIds] = useState<Set<number>>(loadFavoriteSet)
   const [tagColors, setTagColors] = useState<Record<number, number>>(loadColorMap)
   const [renameTagTarget, setRenameTagTarget] = useState<TagWithUsage | null>(null)
@@ -172,10 +192,15 @@ export function TagManagementPage() {
   const [associationTag, setAssociationTag] = useState<TagWithUsage | null>(null)
   const [activeDragTag, setActiveDragTag] = useState<TagWithUsage | null>(null)
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null)
+  const [checkedCategoryIds, setCheckedCategoryIds] = useState<Set<number>>(() => new Set())
+  const lastCheckedCategoryIdRef = useRef<number | null>(null)
+  const [batchDeleteCategoriesOpen, setBatchDeleteCategoriesOpen] = useState(false)
   const [categorySearch, setCategorySearch] = useState("")
   const [panelTagSearch, setPanelTagSearch] = useState("")
   const [selectedTagIds, setSelectedTagIds] = useState<Set<number>>(() => new Set())
+  const lastSelectedTagIdRef = useRef<number | null>(null)
   const [batchMoving, setBatchMoving] = useState(false)
+  const [aiSuggestOpen, setAiSuggestOpen] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -183,8 +208,10 @@ export function TagManagementPage() {
     }),
   )
 
+  const tagsQueryKey = ["tags", plApi.libraryId] as const
+
   const tagsQuery = useQuery({
-    queryKey: ["tags", plApi.libraryId],
+    queryKey: tagsQueryKey,
     queryFn: async (): Promise<TagWithUsage[]> => {
       const res = await fetch(plApi.path("/tags"))
       if (!res.ok) {
@@ -218,7 +245,7 @@ export function TagManagementPage() {
       return res.json() as Promise<TagWithUsage>
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tags"] })
+      queryClient.invalidateQueries({ queryKey: tagsQueryKey })
       toast.success("已创建标签")
       setCreateOpen(false)
       setNewName("")
@@ -247,9 +274,9 @@ export function TagManagementPage() {
       return res.json() as Promise<TagWithUsage>
     },
     onMutate: async (vars) => {
-      await queryClient.cancelQueries({ queryKey: ["tags"] })
-      const previous = queryClient.getQueryData<TagWithUsage[]>(["tags"])
-      queryClient.setQueryData<TagWithUsage[]>(["tags"], (old) => {
+      await queryClient.cancelQueries({ queryKey: tagsQueryKey })
+      const previous = queryClient.getQueryData<TagWithUsage[]>(tagsQueryKey)
+      queryClient.setQueryData<TagWithUsage[]>(tagsQueryKey, (old) => {
         if (!old) {
           return old
         }
@@ -268,14 +295,14 @@ export function TagManagementPage() {
     },
     onError: (e, vars, ctx) => {
       if (ctx?.previous !== undefined) {
-        queryClient.setQueryData(["tags"], ctx.previous)
+        queryClient.setQueryData(tagsQueryKey, ctx.previous)
       }
       if (!("name" in vars)) {
         toast.error(e.message || "更新失败")
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["tags"] })
+      queryClient.invalidateQueries({ queryKey: tagsQueryKey })
     },
   })
 
@@ -287,11 +314,26 @@ export function TagManagementPage() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tags"] })
-      toast.success("已删除标签")
-      setDeleteTarget(null)
+      queryClient.invalidateQueries({ queryKey: tagsQueryKey })
+      queryClient.invalidateQueries({ queryKey: ["projects", plApi.libraryId] })
+      queryClient.invalidateQueries({ queryKey: ["library", plApi.libraryId] })
+      toast.success("已删除标签，并已从关联的项目与文件夹中移除")
+      setDeleteDialogOpen(false)
+      if (clearDeleteDialogTagTimerRef.current) {
+        clearTimeout(clearDeleteDialogTagTimerRef.current)
+      }
+      clearDeleteDialogTagTimerRef.current = setTimeout(() => {
+        setDeleteDialogTag(null)
+        setDeleteDialogSubmitting(false)
+        deleteDialogSubmittingRef.current = false
+        clearDeleteDialogTagTimerRef.current = null
+      }, 220)
     },
-    onError: (e: Error) => toast.error(e.message || "删除失败"),
+    onError: (e: Error) => {
+      setDeleteDialogSubmitting(false)
+      deleteDialogSubmittingRef.current = false
+      toast.error(e.message || "删除失败")
+    },
   })
 
   const createCategoryMutation = useMutation({
@@ -329,7 +371,7 @@ export function TagManagementPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tag-categories"] })
-      queryClient.invalidateQueries({ queryKey: ["tags"] })
+      queryClient.invalidateQueries({ queryKey: tagsQueryKey })
       toast.success("已重命名")
       setRenameCat(null)
     },
@@ -345,11 +387,43 @@ export function TagManagementPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tag-categories"] })
-      queryClient.invalidateQueries({ queryKey: ["tags"] })
-      toast.success("已删除分类（标签已移至未分类）")
-      setDeleteCategoryTarget(null)
+      queryClient.invalidateQueries({ queryKey: tagsQueryKey })
     },
     onError: (e: Error) => toast.error(e.message || "删除失败"),
+  })
+
+  const batchDeleteCategoriesMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      const results = await Promise.allSettled(
+        ids.map(async (id) => {
+          const res = await fetch(plApi.path(`/tag-categories/${id}`), { method: "DELETE" })
+          if (!res.ok) {
+            throw new Error(await parseErrorMessage(res))
+          }
+        })
+      )
+      const failed = results.filter((r) => r.status === "rejected")
+      if (failed.length > 0) {
+        const first = failed[0]
+        const msg =
+          first.status === "rejected" && first.reason instanceof Error
+            ? first.reason.message
+            : "部分分类删除失败"
+        throw new Error(`${msg}（${failed.length}/${ids.length} 失败）`)
+      }
+    },
+    onSuccess: (_data, ids) => {
+      queryClient.invalidateQueries({ queryKey: ["tag-categories"] })
+      queryClient.invalidateQueries({ queryKey: tagsQueryKey })
+      toast.success(`已删除 ${ids.length} 个分类（标签已移至未分类）`)
+      setCheckedCategoryIds(new Set())
+      lastCheckedCategoryIdRef.current = null
+      setBatchDeleteCategoriesOpen(false)
+      if (selectedCategoryId != null && ids.includes(selectedCategoryId)) {
+        setSelectedCategoryId(null)
+      }
+    },
+    onError: (e: Error) => toast.error(e.message || "批量删除失败"),
   })
 
   const filtered = useMemo(() => {
@@ -365,6 +439,17 @@ export function TagManagementPage() {
 
   const categories = categoriesQuery.data ?? []
 
+  const filteredCategories = useMemo(() => {
+    const q = categorySearch.trim().toLowerCase()
+    if (!q) return categories
+    return categories.filter((c) => c.name.toLowerCase().includes(q))
+  }, [categories, categorySearch])
+
+  const filteredCategoryIds = useMemo(
+    () => filteredCategories.map((c) => c.id),
+    [filteredCategories]
+  )
+
   const categoryCounts = useMemo(() => {
     const counts = new Map<number | null, number>()
     counts.set(null, 0)
@@ -377,6 +462,8 @@ export function TagManagementPage() {
     }
     return counts
   }, [tagsQuery.data, categories])
+
+  const uncategorizedCount = categoryCounts.get(null) ?? 0
 
   const tagsInSelectedCategory = useMemo(() => {
     const rows = tagsQuery.data ?? []
@@ -394,6 +481,7 @@ export function TagManagementPage() {
 
   useEffect(() => {
     setSelectedTagIds(new Set())
+    lastSelectedTagIdRef.current = null
   }, [selectedCategoryId, panelTagSearch])
 
   const handleSelectCategory = useCallback((categoryId: number | null) => {
@@ -401,26 +489,157 @@ export function TagManagementPage() {
     setPanelTagSearch("")
   }, [])
 
-  const handleTagSelect = useCallback((tagId: number, { additive }: { additive: boolean }) => {
-    setSelectedTagIds((prev) => {
-      if (additive) {
-        const next = new Set(prev)
-        if (next.has(tagId)) {
-          next.delete(tagId)
-        } else {
-          next.add(tagId)
+  const handleCategoryRowMouseDown = useCallback(
+    (categoryId: number | null, event: MouseEvent<HTMLButtonElement>) => {
+      const ctrl = event.ctrlKey || event.metaKey
+      const shift = event.shiftKey
+
+      if (categoryId === null) {
+        handleSelectCategory(null)
+        if (!ctrl && !shift) {
+          setCheckedCategoryIds(new Set())
+          lastCheckedCategoryIdRef.current = null
         }
-        return next
+        return
       }
-      if (prev.size === 1 && prev.has(tagId)) {
-        return new Set()
+
+      if (shift) {
+        const anchor = lastCheckedCategoryIdRef.current ?? selectedCategoryId
+        if (anchor != null) {
+          const start = filteredCategoryIds.indexOf(anchor)
+          const end = filteredCategoryIds.indexOf(categoryId)
+          if (start >= 0 && end >= 0) {
+            const [from, to] = start < end ? [start, end] : [end, start]
+            setCheckedCategoryIds((prev) => {
+              const next = ctrl ? new Set(prev) : new Set<number>()
+              for (let i = from; i <= to; i++) {
+                next.add(filteredCategoryIds[i]!)
+              }
+              return next
+            })
+            lastCheckedCategoryIdRef.current = categoryId
+            handleSelectCategory(categoryId)
+            return
+          }
+        }
       }
-      return new Set([tagId])
-    })
+
+      if (ctrl) {
+        setCheckedCategoryIds((prev) => {
+          const next = new Set(prev)
+          if (next.has(categoryId)) {
+            next.delete(categoryId)
+          } else {
+            next.add(categoryId)
+          }
+          return next
+        })
+        lastCheckedCategoryIdRef.current = categoryId
+        handleSelectCategory(categoryId)
+        return
+      }
+
+      setCheckedCategoryIds(new Set([categoryId]))
+      lastCheckedCategoryIdRef.current = categoryId
+      handleSelectCategory(categoryId)
+    },
+    [filteredCategoryIds, handleSelectCategory, selectedCategoryId]
+  )
+
+  const handleClearCategorySelection = useCallback(() => {
+    setCheckedCategoryIds(new Set())
+    lastCheckedCategoryIdRef.current = null
   }, [])
+
+  const handleBatchDeleteCategories = useCallback(() => {
+    if (checkedCategoryIds.size === 0) return
+    setBatchDeleteCategoriesOpen(true)
+  }, [checkedCategoryIds.size])
+
+  const confirmBatchDeleteCategories = useCallback(() => {
+    const ids = [...checkedCategoryIds]
+    if (ids.length === 0) return
+    batchDeleteCategoriesMutation.mutate(ids)
+  }, [batchDeleteCategoriesMutation, checkedCategoryIds])
+
+  useEffect(() => {
+    if (mainTab !== "categories") return
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "Delete" && e.key !== "Backspace") return
+      const target = e.target
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.tagName === "SELECT")
+      ) {
+        return
+      }
+      if (checkedCategoryIds.size === 0) return
+      e.preventDefault()
+      handleBatchDeleteCategories()
+    }
+
+    window.addEventListener("keydown", onKeyDown)
+    return () => window.removeEventListener("keydown", onKeyDown)
+  }, [checkedCategoryIds.size, handleBatchDeleteCategories, mainTab])
+
+  const handleTagSelect = useCallback(
+    (tagId: number, { additive, range }: TagSelectOptions, visibleTagIds: number[]) => {
+      if (range) {
+        const anchor = lastSelectedTagIdRef.current ?? tagId
+        const start = visibleTagIds.indexOf(anchor)
+        const end = visibleTagIds.indexOf(tagId)
+        if (start >= 0 && end >= 0) {
+          const [from, to] = start < end ? [start, end] : [end, start]
+          setSelectedTagIds((prev) => {
+            const next = additive ? new Set(prev) : new Set<number>()
+            for (let i = from; i <= to; i++) {
+              next.add(visibleTagIds[i]!)
+            }
+            return next
+          })
+          lastSelectedTagIdRef.current = tagId
+          return
+        }
+      }
+
+      if (additive) {
+        setSelectedTagIds((prev) => {
+          const next = new Set(prev)
+          if (next.has(tagId)) {
+            next.delete(tagId)
+          } else {
+            next.add(tagId)
+          }
+          return next
+        })
+        lastSelectedTagIdRef.current = tagId
+        return
+      }
+
+      setSelectedTagIds((prev) => {
+        if (prev.size === 1 && prev.has(tagId)) {
+          lastSelectedTagIdRef.current = null
+          return new Set()
+        }
+        lastSelectedTagIdRef.current = tagId
+        return new Set([tagId])
+      })
+    },
+    []
+  )
 
   const handleSelectAllTags = useCallback((tagIds: number[]) => {
     setSelectedTagIds(new Set(tagIds))
+    lastSelectedTagIdRef.current = tagIds[tagIds.length - 1] ?? null
+  }, [])
+
+  const handleClearTagSelection = useCallback(() => {
+    setSelectedTagIds(new Set())
+    lastSelectedTagIdRef.current = null
   }, [])
 
   const handleBatchMove = useCallback(
@@ -434,6 +653,7 @@ export function TagManagementPage() {
           categoryId === null ? "未分类" : categories.find((c) => c.id === categoryId)?.name ?? "分类"
         toast.success(`已将 ${ids.length} 个标签移入「${label}」`)
         setSelectedTagIds(new Set())
+        lastSelectedTagIdRef.current = null
       } catch (e) {
         toast.error(e instanceof Error ? e.message : "批量移动失败")
       } finally {
@@ -532,7 +752,29 @@ export function TagManagementPage() {
     }
   }
 
-  const requestDeleteTag = useCallback((t: TagWithUsage) => setDeleteTarget(t), [])
+  const closeDeleteTagDialog = useCallback(() => {
+    setDeleteDialogOpen(false)
+    if (clearDeleteDialogTagTimerRef.current) {
+      clearTimeout(clearDeleteDialogTagTimerRef.current)
+    }
+    clearDeleteDialogTagTimerRef.current = setTimeout(() => {
+      setDeleteDialogTag(null)
+      setDeleteDialogSubmitting(false)
+      deleteDialogSubmittingRef.current = false
+      clearDeleteDialogTagTimerRef.current = null
+    }, 220)
+  }, [])
+
+  const requestDeleteTag = useCallback((t: TagWithUsage) => {
+    if (clearDeleteDialogTagTimerRef.current) {
+      clearTimeout(clearDeleteDialogTagTimerRef.current)
+      clearDeleteDialogTagTimerRef.current = null
+    }
+    setDeleteDialogSubmitting(false)
+    deleteDialogSubmittingRef.current = false
+    setDeleteDialogTag(t)
+    setDeleteDialogOpen(true)
+  }, [])
 
   const toggleFavorite = useCallback((id: number) => {
     setFavoriteIds((prev) => {
@@ -562,6 +804,33 @@ export function TagManagementPage() {
     })
   }, [])
 
+  const browseLibraryByTag = useCallback(
+    (tag: TagWithUsage) => {
+      setPreviewProject(null)
+      setBrowseSearchQuery("")
+      setBrowseSelectedFolderIds([])
+      setBrowseTagMatchMode("any")
+      setBrowseSelectedTagIds([tag.id])
+      setLibraryScope({ kind: "all" })
+      const folderOnly =
+        (tag.project_usage_count ?? 0) === 0 && (tag.folder_usage_count ?? 0) > 0
+      toast.message(
+        folderOnly
+          ? `已在「${library?.name ?? "当前库"}」按标签「${tag.name}」筛选（标签在文件夹上）`
+          : `已在「${library?.name ?? "当前库"}」按标签「${tag.name}」筛选`
+      )
+    },
+    [
+      setLibraryScope,
+      setPreviewProject,
+      setBrowseSearchQuery,
+      setBrowseSelectedFolderIds,
+      setBrowseSelectedTagIds,
+      setBrowseTagMatchMode,
+      library?.name,
+    ]
+  )
+
   const tagActions = useMemo<TagActions>(
     () => ({
       categories,
@@ -576,8 +845,18 @@ export function TagManagementPage() {
       onAssociate: setAssociationTag,
       onMoveCategory: (id, category_id) => patchTagMutation.mutate({ id, category_id }),
       onDelete: requestDeleteTag,
+      onBrowseByTag: browseLibraryByTag,
     }),
-    [categories, favoriteIds, tagColors, toggleFavorite, setTagColorPref, patchTagMutation, requestDeleteTag],
+    [
+      categories,
+      favoriteIds,
+      tagColors,
+      toggleFavorite,
+      setTagColorPref,
+      patchTagMutation,
+      requestDeleteTag,
+      browseLibraryByTag,
+    ],
   )
 
   return (
@@ -601,12 +880,27 @@ export function TagManagementPage() {
               <span>{mainTab === "categories" ? "标签分类" : `所有标签（${total}）`}</span>
             </h2>
             <p className="text-muted-foreground max-w-2xl text-sm leading-relaxed">
+              当前项目库：
+              <span className="text-foreground font-medium">{library?.name ?? "—"}</span>
+              。标签仅在本库内有效，与其它项目库互不影响。
               {mainTab === "categories"
-                ? "左侧选择分类；右侧查看并整理标签。将标签拖到左侧分类，或勾选后批量移动。"
-                : "为项目打上标签，便于分类与检索；可在「标签分类」中整理归类。"}
+                ? " 左侧 Ctrl / Shift 多选分类，右键批量删除；右侧标签支持 Ctrl / Shift 多选与批量移动。"
+                : " 数字为项目用量，+N 为文件夹用量；双击可在本库内按该标签筛选项目。"}
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap gap-2">
+            {mainTab === "categories" && selectedCategoryId === null ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-1.5"
+                onClick={() => setAiSuggestOpen(true)}
+                disabled={uncategorizedCount === 0}
+              >
+                <Wand2 className="size-4" aria-hidden />
+                AI 整理未分类
+              </Button>
+            ) : null}
             <Button type="button" className="gap-1.5" onClick={() => setCreateOpen(true)}>
               <Plus className="size-4" aria-hidden />
               创建标签
@@ -673,20 +967,26 @@ export function TagManagementPage() {
               onDragEnd={handleDragEnd}
               onDragCancel={() => setActiveDragTag(null)}
             >
-              <div className="flex h-[min(72vh,760px)] max-h-[min(72vh,760px)] min-h-0 gap-3">
+              <div
+                className={`flex min-h-0 items-stretch gap-3 ${TAG_CATEGORY_DUAL_PANEL_HEIGHT}`}
+              >
                 <TagCategorySidebar
                   categories={categories}
                   categoryCounts={categoryCounts}
                   categorySearch={categorySearch}
                   onCategorySearchChange={setCategorySearch}
                   selectedCategoryId={selectedCategoryId}
-                  onSelectCategory={handleSelectCategory}
+                  checkedCategoryIds={checkedCategoryIds}
+                  onCategoryRowMouseDown={handleCategoryRowMouseDown}
                   onCreateCategory={() => setCreateCatOpen(true)}
                   onRenameCategory={(c) => {
                     setRenameCat(c)
                     setRenameCatInput(c.name)
                   }}
                   onDeleteCategory={setDeleteCategoryTarget}
+                  onClearCategorySelection={handleClearCategorySelection}
+                  onBatchDeleteCategories={handleBatchDeleteCategories}
+                  batchDeleting={batchDeleteCategoriesMutation.isPending}
                 />
                 <TagCategoryTagGrid
                   selectedCategoryId={selectedCategoryId}
@@ -697,7 +997,7 @@ export function TagManagementPage() {
                   selectedTagIds={selectedTagIds}
                   onTagSelect={handleTagSelect}
                   onSelectAll={handleSelectAllTags}
-                  onClearSelection={() => setSelectedTagIds(new Set())}
+                  onClearSelection={handleClearTagSelection}
                   onBatchMove={handleBatchMove}
                   categories={categories}
                   actions={tagActions}
@@ -920,29 +1220,38 @@ export function TagManagementPage() {
         </DialogContent>
       </Dialog>
 
-      <AlertDialog open={deleteTarget !== null} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+      <AlertDialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          if (!open && !deleteDialogSubmittingRef.current) closeDeleteTagDialog()
+        }}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>删除标签</AlertDialogTitle>
-            <AlertDialogDescription>
-              {deleteTarget
-                ? `确定删除「${deleteTarget.name}」？若仍有项目使用该标签，将无法删除。`
-                : ""}
+            <AlertDialogDescription className="min-h-10">
+              {deleteDialogTag
+                ? deleteDialogTag.usage_count > 0
+                  ? `确定删除「${deleteDialogTag.name}」？将从 ${deleteDialogTag.usage_count} 处关联（项目或文件夹）中移除此标签，然后删除标签本身。`
+                  : `确定删除「${deleteDialogTag.name}」？`
+                : "\u00a0"}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>取消</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={(e) => {
-                e.preventDefault()
-                if (deleteTarget) {
-                  deleteMutation.mutate(deleteTarget.id)
-                }
+            <AlertDialogCancel disabled={deleteDialogSubmitting}>取消</AlertDialogCancel>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={!deleteDialogTag || deleteDialogSubmitting}
+              onClick={() => {
+                if (!deleteDialogTag || deleteDialogSubmittingRef.current) return
+                deleteDialogSubmittingRef.current = true
+                setDeleteDialogSubmitting(true)
+                deleteMutation.mutate(deleteDialogTag.id)
               }}
             >
-              {deleteMutation.isPending ? "删除中…" : "删除"}
-            </AlertDialogAction>
+              {deleteDialogSubmitting ? "删除中…" : "删除"}
+            </Button>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -963,7 +1272,20 @@ export function TagManagementPage() {
               onClick={(e) => {
                 e.preventDefault()
                 if (deleteCategoryTarget) {
-                  deleteCategoryMutation.mutate(deleteCategoryTarget.id)
+                  deleteCategoryMutation.mutate(deleteCategoryTarget.id, {
+                    onSuccess: () => {
+                      toast.success("已删除分类（标签已移至未分类）")
+                      setDeleteCategoryTarget(null)
+                      setCheckedCategoryIds((prev) => {
+                        const next = new Set(prev)
+                        next.delete(deleteCategoryTarget.id)
+                        return next
+                      })
+                      if (selectedCategoryId === deleteCategoryTarget.id) {
+                        setSelectedCategoryId(null)
+                      }
+                    },
+                  })
                 }
               }}
             >
@@ -972,6 +1294,48 @@ export function TagManagementPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog
+        open={batchDeleteCategoriesOpen}
+        onOpenChange={(o) => !batchDeleteCategoriesMutation.isPending && setBatchDeleteCategoriesOpen(o)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>批量删除分类</AlertDialogTitle>
+            <AlertDialogDescription>
+              确定删除选中的 {checkedCategoryIds.size} 个分类？这些分类下的标签将全部移回「未分类」。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <ul className="text-muted-foreground max-h-40 list-inside list-disc overflow-y-auto text-sm">
+            {categories
+              .filter((c) => checkedCategoryIds.has(c.id))
+              .map((c) => (
+                <li key={c.id}>{c.name}</li>
+              ))}
+          </ul>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={batchDeleteCategoriesMutation.isPending}>取消</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={batchDeleteCategoriesMutation.isPending}
+              onClick={(e) => {
+                e.preventDefault()
+                confirmBatchDeleteCategories()
+              }}
+            >
+              {batchDeleteCategoriesMutation.isPending ? "删除中…" : "删除全部"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <TagAiSuggestDialog
+        open={aiSuggestOpen}
+        onOpenChange={setAiSuggestOpen}
+        libraryPath={plApi.path}
+        categories={categories}
+        uncategorizedCount={uncategorizedCount}
+      />
     </div>
   )
 }

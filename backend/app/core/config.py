@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     #: 可选环境变量 PAT（CI 等）；与数据库并存时以数据库为准（见 settings_github）
     github_token: str | None = Field(default=None, validation_alias="GITHUB_TOKEN")
+    content_factory_assets_dir: str = "./data/content_factory_assets"
 
     @field_validator("static_dir", mode="before")
     @classmethod

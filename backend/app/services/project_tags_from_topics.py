@@ -13,8 +13,10 @@ async def sync_project_tags_from_github_topics(
     db: AsyncSession,
     project_id: int,
     topic_names: list[str] | None,
+    *,
+    library_id: int,
 ) -> None:
-    """按 topic 名称 get-or-create Tag（新建仅未分类；已存在不改分类），并关联到项目。"""
+    """按 topic 名称在本项目库内 get-or-create Tag，并关联到项目。"""
     if not topic_names:
         return
 
@@ -26,10 +28,13 @@ async def sync_project_tags_from_github_topics(
         ordered_unique.append(name)
 
     for name in ordered_unique:
-        stmt = select(Tag).where(Tag.name == name)
+        stmt = select(Tag).where(
+            Tag.project_library_id == library_id,
+            Tag.name == name,
+        )
         tag = (await db.execute(stmt)).scalar_one_or_none()
         if tag is None:
-            tag = Tag(name=name, category_id=None)
+            tag = Tag(name=name, category_id=None, project_library_id=library_id)
             db.add(tag)
             await db.flush()
 

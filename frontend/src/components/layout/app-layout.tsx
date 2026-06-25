@@ -13,6 +13,8 @@ import { LibraryProjectsLayoutToggle } from "@/components/layout/library-project
 import { LibrarySidebarCollapseHandle } from "@/components/layout/library-sidebar-collapse-handle"
 import { ProjectLibraryRouteShell } from "@/components/layout/project-library-route-shell"
 import { LibrarySidebar } from "@/components/layout/library-sidebar"
+import { ContentFactoryPanelChrome } from "@/components/content-factory/content-factory-panel-chrome"
+import { ContentFactorySidebar } from "@/components/content-factory/content-factory-sidebar"
 import { DiscoverySidebar } from "@/components/discovery/discovery-sidebar"
 import { DiscoveryPanelChrome } from "@/components/discovery/discovery-panel-chrome"
 import { DiscoveryRepoDetailPanelChrome } from "@/components/discovery/discovery-repo-detail-panel-chrome"
@@ -27,6 +29,7 @@ import { cn } from "@/lib/utils"
 const FEATURE_DRAWER_OPEN_KEY = "projectPilot.featureDrawerOpen"
 const LIBRARY_SIDEBAR_OPEN_KEY = "projectPilot.librarySidebarOpen"
 const DISCOVERY_SIDEBAR_OPEN_KEY = "projectPilot.discoverySidebarOpen"
+const CONTENT_FACTORY_SIDEBAR_OPEN_KEY = "projectPilot.contentFactorySidebarOpen"
 
 /** 与左侧资料库 `aside` 的 `w-72`（18rem / 288px）一致：右侧栏默认宽度 */
 const LIBRARY_RAIL_WIDTH_PX = "288px"
@@ -64,8 +67,27 @@ function readDiscoverySidebarOpenFromStorage(): boolean {
   }
 }
 
+function readContentFactorySidebarOpenFromStorage(): boolean {
+  if (typeof window === "undefined") {
+    return true
+  }
+  try {
+    return window.localStorage.getItem(CONTENT_FACTORY_SIDEBAR_OPEN_KEY) !== "0"
+  } catch {
+    return true
+  }
+}
+
 function isInsideDiscoveryPath(pathname: string): boolean {
   return pathname.startsWith("/discovery")
+}
+
+function isInsideContentFactoryPath(pathname: string): boolean {
+  return /^\/libraries\/\d+\/content-factory/.test(pathname)
+}
+
+function isContentFactoryEntryPath(pathname: string): boolean {
+  return pathname === "/content-factory"
 }
 
 function isInsideProjectLibraryPath(pathname: string): boolean {
@@ -95,6 +117,8 @@ function AppLayoutMainShell({
   isProjectDetail,
   isDiscovery,
   isDiscoveryRepoDetail,
+  insideContentFactory,
+  contentFactoryEntry,
   featureDrawerOpen,
   featurePanelRef,
   setFeatureDrawerOpen,
@@ -105,6 +129,8 @@ function AppLayoutMainShell({
   isProjectDetail: boolean
   isDiscovery: boolean
   isDiscoveryRepoDetail: boolean
+  insideContentFactory: boolean
+  contentFactoryEntry: boolean
   featureDrawerOpen: boolean
   featurePanelRef: RefObject<PanelImperativeHandle | null>
   setFeatureDrawerOpen: Dispatch<React.SetStateAction<boolean>>
@@ -149,6 +175,10 @@ function AppLayoutMainShell({
           <DiscoveryRepoDetailPanelChrome />
         ) : isDiscovery ? (
           <DiscoveryPanelChrome />
+        ) : insideContentFactory ? (
+          <ContentFactoryPanelChrome />
+        ) : contentFactoryEntry ? (
+          <span className="text-muted-foreground text-sm font-medium">内容工厂</span>
         ) : (
           <span className="text-muted-foreground text-xs">主内容区</span>
         )}
@@ -225,6 +255,8 @@ function AppLayoutInner() {
 
   const insideLibrary = isInsideProjectLibraryPath(location.pathname)
   const insideDiscovery = isInsideDiscoveryPath(location.pathname)
+  const insideContentFactory = isInsideContentFactoryPath(location.pathname)
+  const contentFactoryEntry = isContentFactoryEntryPath(location.pathname)
   const hideMainChrome = insideLibrary
   const isDiscovery = insideDiscovery
   const isDiscoveryRepoDetail = isDiscoveryRepoDetailPath(location.pathname)
@@ -235,6 +267,9 @@ function AppLayoutInner() {
   const [featureDrawerOpen, setFeatureDrawerOpen] = useState(readFeatureDrawerOpenFromStorage)
   const [librarySidebarOpen, setLibrarySidebarOpen] = useState(readLibrarySidebarOpenFromStorage)
   const [discoverySidebarOpen, setDiscoverySidebarOpen] = useState(readDiscoverySidebarOpenFromStorage)
+  const [contentFactorySidebarOpen, setContentFactorySidebarOpen] = useState(
+    readContentFactorySidebarOpenFromStorage
+  )
   const didApplyInitialCollapse = useRef(false)
 
   const toggleLibrarySidebar = useCallback(() => {
@@ -243,6 +278,10 @@ function AppLayoutInner() {
 
   const toggleDiscoverySidebar = useCallback(() => {
     setDiscoverySidebarOpen((prev) => !prev)
+  }, [])
+
+  const toggleContentFactorySidebar = useCallback(() => {
+    setContentFactorySidebarOpen((prev) => !prev)
   }, [])
 
   const openFeatureDrawer = useCallback(() => {
@@ -316,6 +355,17 @@ function AppLayoutInner() {
   }, [discoverySidebarOpen])
 
   useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        CONTENT_FACTORY_SIDEBAR_OPEN_KEY,
+        contentFactorySidebarOpen ? "1" : "0"
+      )
+    } catch {
+      /* ignore */
+    }
+  }, [contentFactorySidebarOpen])
+
+  useEffect(() => {
     if (!insideDiscovery) {
       return
     }
@@ -357,13 +407,22 @@ function AppLayoutInner() {
       e.preventDefault()
       if (insideDiscovery) {
         toggleDiscoverySidebar()
+      } else if (insideContentFactory) {
+        toggleContentFactorySidebar()
       } else if (insideLibrary) {
         toggleLibrarySidebar()
       }
     }
     window.addEventListener("keydown", onKeyDown)
     return () => window.removeEventListener("keydown", onKeyDown)
-  }, [toggleLibrarySidebar, toggleDiscoverySidebar, insideDiscovery, insideLibrary])
+  }, [
+    toggleLibrarySidebar,
+    toggleDiscoverySidebar,
+    toggleContentFactorySidebar,
+    insideDiscovery,
+    insideContentFactory,
+    insideLibrary,
+  ])
 
   const mainContent = showPreviewRail ? (
         <Group
@@ -379,6 +438,8 @@ function AppLayoutInner() {
               isProjectDetail={isProjectDetail}
               isDiscovery={isDiscovery}
               isDiscoveryRepoDetail={isDiscoveryRepoDetail}
+              insideContentFactory={insideContentFactory}
+              contentFactoryEntry={contentFactoryEntry}
               featureDrawerOpen={featureDrawerOpen}
               featurePanelRef={featurePanelRef}
               setFeatureDrawerOpen={setFeatureDrawerOpen}
@@ -419,6 +480,8 @@ function AppLayoutInner() {
             isProjectDetail={isProjectDetail}
             isDiscovery={isDiscovery}
             isDiscoveryRepoDetail={isDiscoveryRepoDetail}
+            insideContentFactory={insideContentFactory}
+            contentFactoryEntry={contentFactoryEntry}
             featureDrawerOpen={featureDrawerOpen}
             featurePanelRef={featurePanelRef}
             setFeatureDrawerOpen={setFeatureDrawerOpen}
@@ -430,7 +493,36 @@ function AppLayoutInner() {
 
   return (
     <>
-      {insideLibrary ? (
+      {insideContentFactory ? (
+        <ProjectLibraryRouteShell>
+          <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
+            <div className="relative flex h-full min-h-0 shrink-0 overflow-visible">
+              <aside
+                className={cn(
+                  "border-border bg-muted/15 flex flex-col overflow-hidden border-r transition-[width] duration-200 ease-out",
+                  contentFactorySidebarOpen ? "w-72" : "w-0 border-r-0"
+                )}
+              >
+                <div
+                  className={cn(
+                    "flex h-full w-72 min-w-72 flex-col",
+                    !contentFactorySidebarOpen && "invisible"
+                  )}
+                >
+                  <ContentFactorySidebar />
+                </div>
+              </aside>
+              <LibrarySidebarCollapseHandle
+                open={contentFactorySidebarOpen}
+                onOpenChange={setContentFactorySidebarOpen}
+              />
+            </div>
+            {mainContent}
+          </div>
+        </ProjectLibraryRouteShell>
+      ) : contentFactoryEntry ? (
+        mainContent
+      ) : insideLibrary ? (
         <ProjectLibraryRouteShell>
           <LibraryDndProvider>
             <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">

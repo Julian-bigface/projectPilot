@@ -113,6 +113,7 @@ npm run tauri build
 - [ ] 全新安装（或解压）后，双击 **一个入口** 即可打开应用。
 - [ ] `GET /health` 在 sidecar 就绪后返回 ok。
 - [ ] 资料库、设置、GitHub 相关核心路径可操作。
+- [ ] **外链**（GitHub、文档链接）在系统浏览器打开（见 [桌面安装包打包经验 §5.8](./桌面安装包打包经验.md#58-桌面版外链点击无反应)）。
 - [ ] 关闭窗口后 **无残留** `project-pilot-api` / uvicorn 进程。
 - [ ] SQLite 落在 **`%LOCALAPPDATA%\ProjectPilot\`**（非 `Program Files`）。
 - [ ] 卸载后用户数据目录 **默认仍保留**（符合本地优先；若策略不同需在 Release 说明）。

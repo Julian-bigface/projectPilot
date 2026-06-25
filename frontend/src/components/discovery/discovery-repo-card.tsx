@@ -8,6 +8,12 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { parseGithubOwner } from "@/lib/project-display"
 import { pickDiscoveryRepoDescription } from "@/lib/discovery-display"
+import {
+  discoveryDeltaTone,
+  discoveryRankDeltaClassName,
+  formatDiscoveryDeltaValue,
+  formatDiscoveryRankDelta,
+} from "@/lib/discovery-delta"
 import { zreadProjectUrl } from "@/lib/project-wiki-links"
 import { cn } from "@/lib/utils"
 import { ProjectRepoAvatar } from "@/components/project/project-repo-avatar"
@@ -18,9 +24,25 @@ export type DiscoveryRepoCardProps = {
   importedProjectId?: number | null
   fromPath: string
   onBeforeNavigate?: () => void
-  onImport?: (repo: DiscoveryRepo) => void
+  onCollect?: (repo: DiscoveryRepo) => void
+  onUncollect?: (projectId: number, fullName: string) => void
+  uncollecting?: boolean
   enriching?: boolean
+  showDelta?: boolean
+  /** 列表批量翻译后的简介覆盖（不落库） */
+  descriptionOverride?: string | null
+  /** 简介正在翻译中，展示骨架屏 */
+  descriptionTranslating?: boolean
   className?: string
+}
+
+function deltaClassName(tone: "up" | "down" | "neutral") {
+  return cn(
+    "text-[10px] font-medium tabular-nums",
+    tone === "up" && "text-emerald-600 dark:text-emerald-400",
+    tone === "down" && "text-muted-foreground",
+    tone === "neutral" && "text-muted-foreground"
+  )
 }
 
 function stopNav(e: MouseEvent | KeyboardEvent) {
@@ -32,15 +54,22 @@ export function DiscoveryRepoCard({
   importedProjectId,
   fromPath,
   onBeforeNavigate,
-  onImport,
+  onCollect,
+  onUncollect,
+  uncollecting = false,
   enriching = false,
+  showDelta = false,
+  descriptionOverride,
+  descriptionTranslating = false,
   className,
 }: DiscoveryRepoCardProps) {
   const navigate = useNavigate()
+  const delta = showDelta ? repo.delta : null
   const owner = parseGithubOwner(repo.full_name) ?? repo.full_name.split("/")[0] ?? "unknown"
   const repoSlug = repo.full_name.split("/")[1] ?? repo.name
   const zreadUrl = zreadProjectUrl(repo.full_name)
-  const displayDescription = pickDiscoveryRepoDescription(repo.description)
+  const sourceDescription = pickDiscoveryRepoDescription(repo.description)
+  const displayDescription = descriptionOverride ?? sourceDescription
 
   const handleCardActivate = () => {
     onBeforeNavigate?.()
@@ -73,11 +102,28 @@ export function DiscoveryRepoCard({
         className
       )}
     >
-      <div
-        className="bg-muted text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg text-sm font-semibold tabular-nums sm:size-9"
-        aria-label={`排名 ${repo.rank}`}
-      >
-        {repo.rank}
+      <div className="flex size-8 shrink-0 flex-col items-center justify-center sm:size-9">
+        <div
+          className="bg-muted text-muted-foreground flex size-8 items-center justify-center rounded-lg text-sm font-semibold tabular-nums sm:size-9"
+          aria-label={`排名 ${repo.rank}`}
+        >
+          {repo.rank}
+        </div>
+        {delta?.rank != null ? (
+          <span
+            className={cn(
+              "mt-0.5 text-[10px] font-medium tabular-nums",
+              discoveryRankDeltaClassName(delta.rank)
+            )}
+          >
+            {formatDiscoveryRankDelta(delta.rank)}
+          </span>
+        ) : null}
+        {delta?.is_new ? (
+          <span className="mt-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+            新上榜
+          </span>
+        ) : null}
       </div>
 
       <ProjectRepoAvatar
@@ -100,7 +146,9 @@ export function DiscoveryRepoCard({
           </ExternalLink>
         </div>
 
-        {displayDescription ? (
+        {descriptionTranslating ? (
+          <Skeleton className="mt-2 h-8 w-full max-w-md" aria-label="简介翻译中" />
+        ) : displayDescription ? (
           <p className="text-muted-foreground mt-2 line-clamp-2 text-sm leading-relaxed">
             {displayDescription}
           </p>
@@ -114,7 +162,16 @@ export function DiscoveryRepoCard({
             {enriching && repo.stars === 0 ? (
               <Skeleton className="h-3 w-10" />
             ) : (
-              <span className="text-foreground tabular-nums">{repo.stars.toLocaleString("zh-CN")}</span>
+              <>
+                <span className="text-foreground tabular-nums">
+                  {repo.stars.toLocaleString("zh-CN")}
+                </span>
+                {delta?.stars != null ? (
+                  <span className={deltaClassName(discoveryDeltaTone(delta.stars))}>
+                    {formatDiscoveryDeltaValue(delta.stars)}
+                  </span>
+                ) : null}
+              </>
             )}
           </span>
           {enriching && repo.forks === 0 ? (
@@ -122,7 +179,12 @@ export function DiscoveryRepoCard({
           ) : repo.forks > 0 ? (
             <span className="inline-flex items-center gap-1">
               <GitFork className="size-3.5" aria-hidden />
-              {repo.forks.toLocaleString("zh-CN")}
+              <span className="tabular-nums">{repo.forks.toLocaleString("zh-CN")}</span>
+              {delta?.forks != null ? (
+                <span className={deltaClassName(discoveryDeltaTone(delta.forks))}>
+                  {formatDiscoveryDeltaValue(delta.forks)}
+                </span>
+              ) : null}
             </span>
           ) : null}
           {enriching && !repo.language?.trim() ? (
@@ -160,15 +222,17 @@ export function DiscoveryRepoCard({
             <span className="sr-only">在 Zread 查看</span>
           </ExternalLink>
         </Button>
-        {importedProjectId != null || onImport ? (
-          <DiscoveryLibraryStarButton
+        <DiscoveryLibraryStarButton
             importedProjectId={importedProjectId}
-            fromPath={fromPath}
-            onBeforeNavigate={onBeforeNavigate}
-            onImport={onImport ? () => onImport(repo) : undefined}
+            onCollect={onCollect ? () => onCollect(repo) : undefined}
+            onUncollect={
+              importedProjectId != null && onUncollect
+                ? () => onUncollect(importedProjectId, repo.full_name)
+                : undefined
+            }
+            uncollecting={uncollecting}
             stopPropagation
           />
-        ) : null}
       </div>
     </article>
   )

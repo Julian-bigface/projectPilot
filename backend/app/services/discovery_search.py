@@ -12,6 +12,8 @@ from app.services.discovery_cache import (
     search_feed_cache_key,
     set_feed_cache,
 )
+
+FeedCacheTtl = timedelta
 from app.services.discovery_enrich import repo_from_github_json
 from app.services.github_client import search_repositories
 
@@ -50,10 +52,11 @@ async def fetch_search_channel_page(
     per_page: int,
     token: str,
     fresh: bool = False,
+    ttl: FeedCacheTtl = SEARCH_FEED_TTL,
 ) -> DiscoveryPageRead:
     cache_key = search_feed_cache_key(channel, query, page, per_page)
     if not fresh:
-        cached_items = await get_feed_cache(db, cache_key, SEARCH_FEED_TTL)
+        cached_items = await get_feed_cache(db, cache_key, ttl)
         if cached_items is not None:
             return DiscoveryPageRead(
                 items=cached_items,

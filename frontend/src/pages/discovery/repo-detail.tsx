@@ -1,14 +1,19 @@
 import { useQuery } from "@tanstack/react-query"
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { Navigate, useLocation, useParams } from "react-router"
 
 import { DiscoveryRepoDetailHeader } from "@/components/discovery/discovery-repo-detail-header"
 import { DiscoveryRepoDetailTabs } from "@/components/discovery/discovery-repo-detail-tabs"
-import { ImportToLibraryDialog } from "@/components/discovery/import-to-library-dialog"
+import { useDiscoveryCollectDialogs } from "@/hooks/use-discovery-collect-dialogs"
 import { enrichDiscoveryRepos } from "@/lib/discovery-api"
+import {
+  discoveryRepoNeedsEnrich,
+  mergeDiscoveryRepo,
+  readStoredDiscoveryRepo,
+  writeStoredDiscoveryRepo,
+} from "@/lib/discovery-repo-detail-state"
 import { fetchDiscoveryImportedMap } from "@/lib/discovery-imported-map"
 import type { DiscoveryRepo } from "@/types/discovery"
-import type { Project } from "@/types/project"
 
 type DiscoveryRepoDetailLocationState = {
   repo?: DiscoveryRepo
@@ -34,22 +39,12 @@ function buildFallbackRepo(owner: string, repoName: string): DiscoveryRepo {
   }
 }
 
-function needsEnrich(repo: DiscoveryRepo): boolean {
-  return repo.stars === 0 && repo.forks === 0 && !repo.language?.trim()
-}
-
 export function DiscoveryRepoDetailPage() {
   const { owner, repo: repoParam } = useParams<{ owner: string; repo: string }>()
   const location = useLocation()
   const state = location.state as DiscoveryRepoDetailLocationState | null
 
-  const [importOpen, setImportOpen] = useState(false)
   const [importedProjectId, setImportedProjectId] = useState<number | null>(null)
-
-  const fromPath =
-    typeof state?.from === "string" && state.from.startsWith("/discovery")
-      ? state.from
-      : `${location.pathname}${location.search}`
 
   const importedMapQuery = useQuery({
     queryKey: ["discovery-imported-map"],
@@ -57,76 +52,112 @@ export function DiscoveryRepoDetailPage() {
     staleTime: 60_000,
   })
 
+  const { requestCollect, requestUncollect, dialogs, uncollectingProjectId } =
+    useDiscoveryCollectDialogs({
+      onCollected: (project) => setImportedProjectId(project.id),
+      onUncollected: () => setImportedProjectId(null),
+    })
+
   const valid = Boolean(owner?.trim() && repoParam?.trim())
   const safeOwner = owner?.trim() ?? ""
   const safeRepo = repoParam?.trim() ?? ""
+  const fullName = `${safeOwner}/${safeRepo}`
 
-  const baseRepo = useMemo(
-    () => state?.repo ?? buildFallbackRepo(safeOwner, safeRepo),
-    [state?.repo, safeOwner, safeRepo]
-  )
+  const seedRepo = useMemo(() => {
+    const fromState = state?.repo
+    const fromStorage = readStoredDiscoveryRepo(fullName)
+    const fallback = buildFallbackRepo(safeOwner, safeRepo)
+    if (fromState) {
+      return mergeDiscoveryRepo(fallback, fromState)
+    }
+    if (fromStorage) {
+      return mergeDiscoveryRepo(fallback, fromStorage)
+    }
+    return fallback
+  }, [fullName, safeOwner, safeRepo, state?.repo])
+
+  const [displayRepo, setDisplayRepo] = useState<DiscoveryRepo>(seedRepo)
+  const resolvedRef = useRef(displayRepo)
+
+  useEffect(() => {
+    const next = mergeDiscoveryRepo(resolvedRef.current, seedRepo)
+    resolvedRef.current = next
+    setDisplayRepo(next)
+    writeStoredDiscoveryRepo(next)
+  }, [seedRepo])
 
   const enrichQuery = useQuery({
-    queryKey: ["discovery", "repo-detail-enrich", baseRepo.full_name],
+    queryKey: ["discovery", "repo-detail-enrich", fullName],
     queryFn: async () => {
       const result = await enrichDiscoveryRepos([
         {
-          full_name: baseRepo.full_name,
-          rank: baseRepo.rank,
-          name: baseRepo.name,
-          html_url: baseRepo.html_url,
-          description: baseRepo.description,
-          stars: baseRepo.stars,
-          forks: baseRepo.forks,
+          full_name: displayRepo.full_name,
+          rank: displayRepo.rank,
+          name: displayRepo.name,
+          html_url: displayRepo.html_url,
+          description: displayRepo.description,
+          stars: displayRepo.stars,
+          forks: displayRepo.forks,
         },
       ])
-      return result.items[0] ?? baseRepo
+      return result.items[0] ?? displayRepo
     },
-    enabled: valid && needsEnrich(baseRepo),
+    enabled: valid && discoveryRepoNeedsEnrich(displayRepo),
     staleTime: Number.POSITIVE_INFINITY,
     refetchOnWindowFocus: false,
+    refetchOnMount: false,
   })
+
+  useEffect(() => {
+    if (!enrichQuery.data) {
+      return
+    }
+    const next = mergeDiscoveryRepo(resolvedRef.current, enrichQuery.data)
+    resolvedRef.current = next
+    setDisplayRepo(next)
+    writeStoredDiscoveryRepo(next)
+  }, [enrichQuery.data])
 
   if (!valid) {
     return <Navigate to="/discovery/trending" replace />
   }
 
-  const displayRepo = needsEnrich(baseRepo) ? (enrichQuery.data ?? baseRepo) : baseRepo
-  const enriching = needsEnrich(baseRepo) && enrichQuery.isLoading
+  const enriching = discoveryRepoNeedsEnrich(displayRepo) && enrichQuery.isLoading
 
   const resolvedImportedId =
     importedProjectId ?? importedMapQuery.data?.get(displayRepo.full_name) ?? null
 
-  const openImport = () => setImportOpen(true)
-
-  const handleImported = (project: Project) => {
-    setImportedProjectId(project.id)
-  }
+  const uncollecting =
+    uncollectingProjectId != null && uncollectingProjectId === resolvedImportedId
 
   return (
     <>
-      <ImportToLibraryDialog
-        repo={displayRepo}
-        open={importOpen}
-        onOpenChange={setImportOpen}
-        onImported={handleImported}
-      />
-
+      {dialogs}
       <div className="main-auto-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain pb-12">
         <DiscoveryRepoDetailHeader
           repo={displayRepo}
           enriching={enriching}
           importedProjectId={resolvedImportedId}
-          fromPath={fromPath}
-          onImport={openImport}
+          onCollect={() => requestCollect(displayRepo)}
+          onUncollect={
+            resolvedImportedId != null
+              ? () => requestUncollect(resolvedImportedId, displayRepo.full_name)
+              : undefined
+          }
+          uncollecting={uncollecting}
         />
         <DiscoveryRepoDetailTabs
           owner={safeOwner}
           repo={safeRepo}
           discoveryRepo={displayRepo}
           importedProjectId={resolvedImportedId}
-          fromPath={fromPath}
-          onImport={resolvedImportedId ? undefined : openImport}
+          onCollect={() => requestCollect(displayRepo)}
+          onUncollect={
+            resolvedImportedId != null
+              ? () => requestUncollect(resolvedImportedId, displayRepo.full_name)
+              : undefined
+          }
+          uncollecting={uncollecting}
         />
       </div>
     </>

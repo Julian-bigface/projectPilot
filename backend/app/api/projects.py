@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi.responses import Response as FastAPIResponse
 from sqlalchemy import delete, exists, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -30,6 +32,7 @@ from app.services.project_translate import (
     translate_project_readme,
     translate_project_readme_block,
 )
+from app.services.readme_image_proxy import fetch_readme_image
 from app.services.translation.provider import TranslationError
 
 router = APIRouter()
@@ -136,6 +139,26 @@ async def preview_github_repo(
     return await preview_github_repository(db, github_url.strip())
 
 
+@router.get("/readme-image-proxy")
+async def readme_image_proxy(url: str = Query(..., min_length=8)) -> FastAPIResponse:
+    """为 README 封面截图代理外链图片，避免浏览器 canvas 跨域污染。"""
+    try:
+        body, content_type = await fetch_readme_image(url)
+    except ValueError as err:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)) from err
+    except httpx.HTTPError as err:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="图片拉取失败",
+        ) from err
+
+    return FastAPIResponse(
+        content=body,
+        media_type=content_type,
+        headers={"Cache-Control": "private, max-age=3600"},
+    )
+
+
 async def _default_project_library_id(db: AsyncSession) -> int:
     from app.models.project_library import ProjectLibrary
 
@@ -184,7 +207,9 @@ async def create_project(body: ProjectCreate, db: AsyncSession = Depends(get_db)
     enriched = await try_enrich_project_from_github(db, project)
     await db.refresh(project)
     if not enriched and body.topics:
-        await sync_project_tags_from_github_topics(db, project.id, list(body.topics))
+        await sync_project_tags_from_github_topics(
+            db, project.id, list(body.topics), library_id=project.project_library_id
+        )
         await db.commit()
         await db.refresh(project)
     return await project_to_read(db, project)
@@ -225,6 +250,16 @@ async def restore_project(project_id: int, db: AsyncSession = Depends(get_db)) -
     await db.commit()
     await db.refresh(project)
     return await project_to_read(db, project)
+
+
+@router.delete("/{project_id}/collect", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_project_collect(project_id: int, db: AsyncSession = Depends(get_db)) -> None:
+    """发现中心取消收藏：直接移除项目记录，不进入回收站。"""
+    project = await db.get(Project, project_id)
+    if project is None or project.deleted_at is not None:
+        raise _not_found_deleted()
+    await db.delete(project)
+    await db.commit()
 
 
 @router.delete("/{project_id}/permanent", status_code=status.HTTP_204_NO_CONTENT)

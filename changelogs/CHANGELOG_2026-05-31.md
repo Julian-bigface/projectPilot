@@ -288,7 +288,46 @@
 
 ---
 
-## 验证记录
+## 34. 发现频道 1 小时刷新 + 趋势上一期对比
+
+- **后端 TTL**：[`discovery_cache.py`](../backend/app/services/discovery_cache.py) — 趋势 / 最受欢迎 **1 小时**；热门发布 / 主题探索 Search 仍 **10 分钟**。
+- **快照**：[`discovery_snapshot.py`](../backend/app/services/discovery_snapshot.py) + 表 `discovery_feed_snapshot`；趋势换榜前备份上一期，API 返回 `baseline_at` 与条目 `delta`（Star/Fork/排名 / 新上榜）。
+- **前端**：[`discovery-last-refresh.ts`](../frontend/src/lib/discovery-last-refresh.ts) 冷却 **1 小时**；[`discovery-repo-card.tsx`](../frontend/src/components/discovery/discovery-repo-card.tsx) 趋势 delta 标注；顶栏 meta「较上一期（…）」。
+- **测试**：`pytest tests/test_discovery.py` — 21 passed；已更新 [`contracts/openapi.json`](../contracts/openapi.json)。
+- **修复**：趋势 enrich 结果写入 React Query 会话缓存（6h）；再次进入趋势或切换频道时优先读缓存，避免 Star/简介骨架屏闪烁；列表频道切换时若 React Query 已有数据则不再整页 skeleton。
+
+---
+
+## 35. 资料库标签筛选 Popover 与分类双栏等高
+
+- **资料库标签筛选**（[`library-tag-filter-panel.tsx`](../frontend/src/components/library/library-tag-filter-panel.tsx)）：左侧分类列表增加 `max-h` + 纵向滚动（`main-auto-scrollbar`）；双栏统一 `h-[min(60vh,400px)]`，左右同高各自滚动。
+- **标签管理分类 Tab**：抽出 `TAG_CATEGORY_DUAL_PANEL_HEIGHT` / `TAG_CATEGORY_PANEL_SHELL_CLASS`，父级 `items-stretch` 使侧栏与标签网格等高。
+
+---
+
+## 36. 标签管理：双击跳转根目录筛选
+
+- **所有标签 / 分类网格**：双击标签（或右键「在根目录按此标签筛选」）→ 切换至资料库 `folders_all` 根目录视图，并应用该标签筛选（`tagMatchMode: any`）。
+
+---
+
+## 38. 新增项目：GitHub topics 同步到当前项目库标签
+
+- **原因**：`sync_project_tags_from_github_topics` 按全局 `Tag.name` 查找/创建，未设 `project_library_id`，新项目的 topics 会挂到**默认库**已有同名标签；目标库「标签管理」仍为空。
+- **修复**：同步时限定 `project_library_id`；发现「加入资料库」请求体附带 `topics`（无 Token 拉 GitHub 时仍可入库内标签）。
+- **测试**：[`backend/tests/test_project_tags_from_topics.py`](../backend/tests/test_project_tags_from_topics.py)。
+
+---
+
+## 37. 标签用量与筛选对齐（bilibili 类问题）
+
+- **原因**：`usage_count` 含文件夹标签与回收站项目；筛选只匹配**未删除项目**上的标签，且此前未继承**文件夹标签**。
+- **后端**：`TagRead` 拆分 `project_usage_count` / `folder_usage_count`；项目用量排除 `deleted_at`；`/library/tree` 文件夹节点带 `tags`。
+- **前端**：芯片显示项目数，文件夹用量以 `+N` 标注；资料库筛选匹配「项目标签 ∪ 所在文件夹标签」；双击筛选改切 `all` 视图。
+
+---
+
+## 验证记录（发现频道）
 
 - **自动化**：`pytest backend/tests/test_settings_github.py`（7 passed）；`npm run build`（frontend）。
 - **手工**：

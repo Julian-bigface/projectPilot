@@ -7,7 +7,11 @@ import { useLibraryBrowseFilters } from "@/context/library-browse-filters"
 import { useLibraryFeatureDrawer } from "@/context/library-feature-drawer"
 import { useLibrarySelection } from "@/context/library-selection"
 import { useLibraryProjectsLayout } from "@/context/library-projects-layout"
-import { applyLibraryFilters, collectTagIdsFromProjects } from "@/lib/library-project-filters"
+import {
+  applyLibraryFilters,
+  collectFolderTagIdsMap,
+  collectTagIdsFromProjects,
+} from "@/lib/library-project-filters"
 import { projectUpdatedAtMs } from "@/lib/patch-project-in-library-caches"
 import {
   findFolderNode,
@@ -131,31 +135,41 @@ export function LibraryHomePage() {
     trashProjectsQuery.data,
   ])
 
+  const folderTagIdsByFolderId = useMemo(
+    () => (tree ? collectFolderTagIdsMap(tree.folders) : new Map<number, number[]>()),
+    [tree]
+  )
+
   const scopeKey =
     libraryScope.kind === "folder" ? `folder:${libraryScope.folderId}` : libraryScope.kind
 
   useEffect(() => {
-    const allowed = collectTagIdsFromProjects(files)
+    const allowed = collectTagIdsFromProjects(files, folderTagIdsByFolderId)
     setSelectedTagIds((prev) => {
       const next = prev.filter((id) => allowed.has(id))
       return next.length === prev.length ? prev : next
     })
-  }, [scopeKey, files, setSelectedTagIds])
+  }, [scopeKey, files, folderTagIdsByFolderId, setSelectedTagIds])
 
   const displayFiles = useMemo(
     () =>
-      applyLibraryFilters(files, {
-        searchQuery: browseFilters.searchQuery,
-        selectedTagIds: browseFilters.selectedTagIds,
-        tagMatchMode: browseFilters.tagMatchMode,
-        selectedFolderIds: browseFilters.selectedFolderIds,
-      }),
+      applyLibraryFilters(
+        files,
+        {
+          searchQuery: browseFilters.searchQuery,
+          selectedTagIds: browseFilters.selectedTagIds,
+          tagMatchMode: browseFilters.tagMatchMode,
+          selectedFolderIds: browseFilters.selectedFolderIds,
+        },
+        folderTagIdsByFolderId
+      ),
     [
       files,
       browseFilters.searchQuery,
       browseFilters.selectedTagIds,
       browseFilters.tagMatchMode,
       browseFilters.selectedFolderIds,
+      folderTagIdsByFolderId,
     ]
   )
 

@@ -33,7 +33,7 @@ export function readmeRawBaseUrl(
   if (!parsed) return null
   const dir = readmeDirectoryFromBasePath(readmeBasePath)
   const suffix = dir ? `${dir}/` : ""
-  return `${parsed.normalizedUrl}/raw/HEAD/${suffix}`
+  return `https://raw.githubusercontent.com/${parsed.full_name}/HEAD/${suffix}`
 }
 
 /** 将 README 内图片 src 解析为可加载的绝对 URL。 */
@@ -59,4 +59,25 @@ export function resolveReadmeImageSrc(
   } catch {
     return trimmed
   }
+}
+
+/** 解析 `<source srcset="...">` 中的相对 URL（含 1x/2x 描述符）。 */
+export function resolveReadmeSrcSet(
+  srcSet: string | undefined,
+  githubUrl: string | undefined,
+  readmeBasePath?: string | null
+): string | undefined {
+  if (!srcSet?.trim()) return srcSet
+  return srcSet
+    .split(",")
+    .map((candidate) => {
+      const trimmed = candidate.trim()
+      if (!trimmed) return trimmed
+      const parts = trimmed.split(/\s+/)
+      const url = parts[0] ?? ""
+      const resolved = resolveReadmeImageSrc(url, githubUrl, readmeBasePath) ?? url
+      if (parts.length <= 1) return resolved
+      return `${resolved} ${parts.slice(1).join(" ")}`
+    })
+    .join(", ")
 }
