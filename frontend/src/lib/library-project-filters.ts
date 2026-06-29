@@ -3,11 +3,29 @@ import type { Project } from "@/types/project"
 
 export type TagMatchMode = "any" | "all"
 
+/** 按 `created_at` 相对当前时间的快捷范围；`null` 表示不限。 */
+export type AddedTimePreset = "7d" | "30d" | "90d" | "365d"
+
+export const ADDED_TIME_PRESET_DAYS: Record<AddedTimePreset, number> = {
+  "7d": 7,
+  "30d": 30,
+  "90d": 90,
+  "365d": 365,
+}
+
+export const ADDED_TIME_PRESET_LABELS: Record<AddedTimePreset, string> = {
+  "7d": "最近 7 天",
+  "30d": "最近 30 天",
+  "90d": "最近 3 个月",
+  "365d": "最近 1 年",
+}
+
 export type LibraryBrowseFilterState = {
   searchQuery: string
   selectedTagIds: number[]
   tagMatchMode: TagMatchMode
   selectedFolderIds: number[]
+  addedTimePreset: AddedTimePreset | null
 }
 
 export function filterBySearch(projects: Project[], q: string): Project[] {
@@ -87,6 +105,22 @@ export function filterByFolders(projects: Project[], folderIds: number[]): Proje
   return projects.filter((p) => p.folder_id !== null && allow.has(p.folder_id))
 }
 
+export function filterByAddedTime(
+  projects: Project[],
+  preset: AddedTimePreset | null,
+  now: Date = new Date()
+): Project[] {
+  if (!preset) {
+    return projects
+  }
+  const days = ADDED_TIME_PRESET_DAYS[preset]
+  const cutoffMs = now.getTime() - days * 24 * 60 * 60 * 1000
+  return projects.filter((p) => {
+    const ts = Date.parse(p.created_at)
+    return Number.isFinite(ts) && ts >= cutoffMs
+  })
+}
+
 export function applyLibraryFilters(
   projects: Project[],
   state: LibraryBrowseFilterState,
@@ -96,6 +130,7 @@ export function applyLibraryFilters(
   out = filterBySearch(out, state.searchQuery)
   out = filterByTags(out, state.selectedTagIds, state.tagMatchMode, folderTagIdsByFolderId)
   out = filterByFolders(out, state.selectedFolderIds)
+  out = filterByAddedTime(out, state.addedTimePreset)
   return out
 }
 
@@ -117,6 +152,7 @@ export function hasActiveLibraryFilters(state: LibraryBrowseFilterState): boolea
   return (
     state.searchQuery.trim() !== "" ||
     state.selectedTagIds.length > 0 ||
-    state.selectedFolderIds.length > 0
+    state.selectedFolderIds.length > 0 ||
+    state.addedTimePreset !== null
   )
 }

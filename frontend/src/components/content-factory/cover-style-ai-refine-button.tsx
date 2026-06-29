@@ -18,7 +18,10 @@ export function CoverStyleAiRefineButton({
   libraryId: number
   enabled: boolean
   snapshot: ContentFactoryCoverStyle
-  onApply: (result: Awaited<ReturnType<typeof refineContentFactoryCoverStyle>>) => void
+  onApply: (
+    result: Awaited<ReturnType<typeof refineContentFactoryCoverStyle>>,
+    instruction: string
+  ) => void
 }) {
   const [popoverOpen, setPopoverOpen] = useState(false)
   const [instruction, setInstruction] = useState("")
@@ -37,7 +40,7 @@ export function CoverStyleAiRefineButton({
         style_report: snapshot.style_report ?? null,
       }),
     onSuccess: (data) => {
-      onApply(data)
+      onApply(data, instruction.trim())
       setInstruction("")
       setPopoverOpen(false)
       toast.success("已应用 AI 调整后的风格")

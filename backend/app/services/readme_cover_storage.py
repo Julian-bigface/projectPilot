@@ -367,6 +367,38 @@ def resolve_style_reference_path(
     return None
 
 
+def style_revision_example_relative_path(*, style_id: str, revision_id: int) -> str:
+    slug = slugify_cover_filename_part(style_id)
+    return f"{STYLE_EXAMPLE_ASSETS_PREFIX}/styles/{slug}/revisions/{revision_id}.png"
+
+
+def clone_style_example_for_revision(
+    *,
+    style_id: str,
+    source_stored_path: str | None,
+    revision_id: int,
+    library_id: int | None = None,
+) -> str | None:
+    """为版本历史复制当前示例图到 revision 专属路径。"""
+    resolved = resolve_style_example_path(
+        style_id=style_id,
+        stored_path=source_stored_path,
+        library_id=library_id,
+    )
+    if not resolved:
+        return None
+    absolute = cover_absolute_path(resolved)
+    if not absolute.is_file() or absolute.stat().st_size <= 0:
+        return None
+    relative = style_revision_example_relative_path(
+        style_id=style_id, revision_id=revision_id
+    )
+    dest = cover_absolute_path(relative)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    dest.write_bytes(absolute.read_bytes())
+    return relative
+
+
 def clone_style_example_image(
     *,
     source_style_id: str,

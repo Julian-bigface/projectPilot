@@ -12,6 +12,7 @@ export type AiProviderRead = {
   models: string[]
   default_model: string
   has_api_key: boolean
+  api_key?: string | null
   api_key_preview?: string | null
   api_key_length?: number | null
   is_default: boolean

@@ -10,6 +10,7 @@ import { LibraryProjectsLayoutProvider } from "@/context/library-projects-layout
 import { LibrarySelectionProvider } from "@/context/library-selection"
 import { AppLayout } from "@/components/layout/app-layout"
 import { SettingsLayout } from "@/components/layout/settings-layout"
+import { BOARD_NAV_ENABLED } from "@/config/feature-flags"
 import { ProjectBoardPage } from "@/pages/projects/board"
 import { LibraryRedirect } from "@/components/routing/library-redirect"
 import { LibraryHomePage } from "@/pages/library/home"
@@ -29,6 +30,7 @@ import { TooltipProvider } from "@/components/ui/tooltip"
 import { ThemeAwareToaster } from "@/components/theme-aware-toaster"
 import { WelcomeGate } from "@/components/welcome/welcome-gate"
 import { GithubSettingsDialogProvider } from "@/context/github-settings-dialog"
+import { TranslationSettingsDialogProvider } from "@/context/translation-settings-dialog"
 
 const queryClient = new QueryClient()
 
@@ -49,12 +51,13 @@ export default function App() {
                 resources={[
                   {
                     name: "projects",
-                    list: "/projects/board",
+                    list: BOARD_NAV_ENABLED ? "/projects/board" : "/libraries",
                     meta: { label: "项目" },
                   },
                 ]}
               >
                 <GithubSettingsDialogProvider>
+                <TranslationSettingsDialogProvider>
                 <WelcomeGate>
                 <Routes>
                   <Route path="/settings/*" element={<SettingsLayout />} />
@@ -84,12 +87,27 @@ export default function App() {
                       <Route path="r/:owner/:repo" element={<DiscoveryRoutePlaceholder />} />
                       <Route path=":channelId" element={<DiscoveryRoutePlaceholder />} />
                     </Route>
-                    <Route path="projects/board" element={<ProjectBoardPage />} />
+                    <Route
+                      path="projects/board"
+                      element={
+                        BOARD_NAV_ENABLED ? (
+                          <ProjectBoardPage />
+                        ) : (
+                          <Navigate to="/libraries" replace />
+                        )
+                      }
+                    />
                     <Route path="projects/:id" element={<ProjectDetailPage />} />
-                    <Route path="projects" element={<Navigate to="/projects/board" replace />} />
+                    <Route
+                      path="projects"
+                      element={
+                        <Navigate to={BOARD_NAV_ENABLED ? "/projects/board" : "/libraries"} replace />
+                      }
+                    />
                   </Route>
                 </Routes>
                 </WelcomeGate>
+                </TranslationSettingsDialogProvider>
                 </GithubSettingsDialogProvider>
                 </Refine>
               </LibraryProjectsLayoutProvider>

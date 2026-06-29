@@ -349,6 +349,7 @@ async def init_db() -> None:
         await conn.run_sync(_migrate_sqlite_cover_styles_global_scope)
         await conn.run_sync(_migrate_sqlite_cover_styles_reference_image_path)
         await conn.run_sync(_migrate_sqlite_cover_styles_design_analysis)
+        await conn.run_sync(_migrate_sqlite_cover_style_revisions)
 
 
 def _migrate_sqlite_discovery_cache_tables(sync_conn) -> None:
@@ -545,6 +546,40 @@ def _migrate_sqlite_cover_styles_design_analysis(sync_conn) -> None:
         text(
             "ALTER TABLE content_factory_cover_styles "
             "ADD COLUMN design_analysis JSON"
+        )
+    )
+
+
+def _migrate_sqlite_cover_style_revisions(sync_conn) -> None:
+    from sqlalchemy import inspect, text
+
+    insp = inspect(sync_conn)
+    if insp.has_table("content_factory_cover_style_revisions"):
+        return
+    sync_conn.execute(
+        text(
+            "CREATE TABLE content_factory_cover_style_revisions ("
+            "id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT, "
+            "style_id VARCHAR(64) NOT NULL, "
+            "revision_index INTEGER NOT NULL, "
+            "source VARCHAR(32) NOT NULL DEFAULT 'ai_refine', "
+            "instruction VARCHAR(500), "
+            "snapshot_json JSON NOT NULL, "
+            "example_image_path VARCHAR(512), "
+            "created_at DATETIME DEFAULT CURRENT_TIMESTAMP NOT NULL"
+            ")"
+        )
+    )
+    sync_conn.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS ix_cover_style_revisions_style_id "
+            "ON content_factory_cover_style_revisions (style_id)"
+        )
+    )
+    sync_conn.execute(
+        text(
+            "CREATE INDEX IF NOT EXISTS ix_cover_style_revisions_style_index "
+            "ON content_factory_cover_style_revisions (style_id, revision_index)"
         )
     )
 

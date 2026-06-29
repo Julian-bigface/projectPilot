@@ -31,6 +31,10 @@ from app.schemas.content_factory import (
     CoverStyleRefinePromptTemplateResponse,
     CoverStyleRefineRequest,
     CoverStyleRefineResponse,
+    CoverStyleRevisionCreateRequest,
+    CoverStyleRevisionListResponse,
+    CoverStyleRevisionRead,
+    CoverStyleRevisionSummary,
     CoverStyleSaveParsedRequest,
     CoverStyleWrite,
     GenerateAiCoverRequest,
@@ -69,6 +73,16 @@ from app.services.cover_style_store import (
     update_style,
 )
 from app.services.cover_style_refine import refine_cover_style, refine_prompt_template
+from app.services.cover_style_revision import (
+    CoverStyleRevisionError,
+    CoverStyleRevisionSnapshot,
+    create_revision_after_ai_refine,
+    delete_revision,
+    get_revision,
+    list_revisions,
+    revision_created_at_iso,
+    revision_snapshot_from_row,
+)
 from app.services.cover_style_design_analysis import CoverStyleDesignAnalysis
 from app.services.cover_style_generate import (
     CoverStyleGenerateError,
@@ -459,6 +473,71 @@ async def _resolve_draft_cover_relative(
     return relative
 
 
+def _style_revision_example_api_path(
+    *, library_id: int, style_id: str, revision_id: int
+) -> str:
+    return (
+        f"/api/project-libraries/{library_id}/content-factory/cover-styles/"
+        f"{style_id}/revisions/{revision_id}/example"
+    )
+
+
+def _revision_to_summary(
+    row,
+    *,
+    library_id: int,
+    style_id: str,
+    cache_bust: int | None = None,
+) -> CoverStyleRevisionSummary:
+    example_url: str | None = None
+    if row.example_image_path:
+        bust = cache_bust if cache_bust is not None else int(_utcnow().timestamp())
+        example_url = (
+            f"{_style_revision_example_api_path(library_id=library_id, style_id=style_id, revision_id=row.id)}"
+            f"?t={bust}"
+        )
+    return CoverStyleRevisionSummary(
+        id=row.id,
+        revision_index=row.revision_index,
+        source=row.source,
+        instruction=row.instruction,
+        created_at=revision_created_at_iso(row),
+        example_image_url=example_url,
+    )
+
+
+def _revision_to_read(
+    row,
+    *,
+    library_id: int,
+    style_id: str,
+    cache_bust: int | None = None,
+) -> CoverStyleRevisionRead:
+    snapshot = revision_snapshot_from_row(row)
+    example_url: str | None = None
+    if row.example_image_path:
+        bust = cache_bust if cache_bust is not None else int(_utcnow().timestamp())
+        example_url = (
+            f"{_style_revision_example_api_path(library_id=library_id, style_id=style_id, revision_id=row.id)}"
+            f"?t={bust}"
+        )
+    return CoverStyleRevisionRead(
+        id=row.id,
+        revision_index=row.revision_index,
+        source=row.source,
+        instruction=row.instruction,
+        created_at=revision_created_at_iso(row),
+        design_analysis=snapshot.design_analysis,
+        prompt_prefix=snapshot.prompt_prefix,
+        prompt_template=snapshot.prompt_template,
+        negative_prompt=snapshot.negative_prompt,
+        color_tokens=ColorTokensRead.model_validate(snapshot.color_tokens.model_dump()),
+        font_tokens=FontTokensRead.model_validate(snapshot.font_tokens.model_dump()),
+        style_report=snapshot.style_report,
+        example_image_url=example_url,
+    )
+
+
 def _style_example_api_path(*, library_id: int, style_id: str) -> str:
     return (
         f"/api/project-libraries/{library_id}/content-factory/cover-styles/{style_id}/example"
@@ -652,6 +731,123 @@ async def post_refine_cover_style(
         color_tokens=ColorTokensRead.model_validate(result.color_tokens.model_dump()),
         font_tokens=FontTokensRead.model_validate(result.font_tokens.model_dump()),
         style_report=result.style_report,
+    )
+
+
+@router.get(
+    "/cover-styles/{style_id}/revisions",
+    response_model=CoverStyleRevisionListResponse,
+)
+async def get_cover_style_revisions(
+    style_id: str,
+    db: AsyncSession = Depends(get_db),
+    library: ProjectLibrary = Depends(get_project_library),
+) -> CoverStyleRevisionListResponse:
+    resolved = await resolve_style(db, library_id=library.id, style_id=style_id)
+    if resolved is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="风格不存在")
+    rows = await list_revisions(db, style_id=style_id)
+    bust = int(_utcnow().timestamp())
+    return CoverStyleRevisionListResponse(
+        items=[
+            _revision_to_summary(row, library_id=library.id, style_id=style_id, cache_bust=bust)
+            for row in rows
+        ]
+    )
+
+
+@router.get(
+    "/cover-styles/{style_id}/revisions/{revision_id}",
+    response_model=CoverStyleRevisionRead,
+)
+async def get_cover_style_revision(
+    style_id: str,
+    revision_id: int,
+    db: AsyncSession = Depends(get_db),
+    library: ProjectLibrary = Depends(get_project_library),
+) -> CoverStyleRevisionRead:
+    resolved = await resolve_style(db, library_id=library.id, style_id=style_id)
+    if resolved is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="风格不存在")
+    row = await get_revision(db, style_id=style_id, revision_id=revision_id)
+    if row is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="版本不存在")
+    return _revision_to_read(row, library_id=library.id, style_id=style_id)
+
+
+@router.post(
+    "/cover-styles/{style_id}/revisions",
+    response_model=CoverStyleRevisionRead,
+    status_code=status.HTTP_201_CREATED,
+)
+async def post_cover_style_revision(
+    style_id: str,
+    body: CoverStyleRevisionCreateRequest,
+    db: AsyncSession = Depends(get_db),
+    library: ProjectLibrary = Depends(get_project_library),
+) -> CoverStyleRevisionRead:
+    try:
+        snapshot = CoverStyleRevisionSnapshot(
+            design_analysis=body.design_analysis,
+            prompt_prefix=body.prompt_prefix.strip(),
+            prompt_template=body.prompt_template.strip(),
+            negative_prompt=body.negative_prompt.strip(),
+            color_tokens=ColorTokens.model_validate(body.color_tokens.model_dump()),
+            font_tokens=FontTokens.model_validate(body.font_tokens.model_dump()),
+            style_report=(body.style_report or "").strip() or None,
+        )
+        row = await create_revision_after_ai_refine(
+            db,
+            library_id=library.id,
+            style_id=style_id,
+            instruction=body.instruction,
+            snapshot=snapshot,
+        )
+        await db.commit()
+        await db.refresh(row)
+    except CoverStyleRevisionError as err:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(err)) from err
+    return _revision_to_read(row, library_id=library.id, style_id=style_id)
+
+
+@router.delete(
+    "/cover-styles/{style_id}/revisions/{revision_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def delete_cover_style_revision(
+    style_id: str,
+    revision_id: int,
+    db: AsyncSession = Depends(get_db),
+    library: ProjectLibrary = Depends(get_project_library),
+) -> None:
+    resolved = await resolve_style(db, library_id=library.id, style_id=style_id)
+    del library
+    if resolved is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="风格不存在")
+    deleted = await delete_revision(db, style_id=style_id, revision_id=revision_id)
+    if not deleted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="版本不存在")
+    await db.commit()
+
+
+@router.get("/cover-styles/{style_id}/revisions/{revision_id}/example")
+async def get_cover_style_revision_example(
+    style_id: str,
+    revision_id: int,
+    db: AsyncSession = Depends(get_db),
+    library: ProjectLibrary = Depends(get_project_library),
+) -> FileResponse:
+    del library
+    row = await get_revision(db, style_id=style_id, revision_id=revision_id)
+    if row is None or not row.example_image_path:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="版本示例图不存在")
+    absolute = cover_absolute_path(row.example_image_path)
+    if not absolute.is_file():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="版本示例图文件不存在")
+    return FileResponse(
+        path=str(absolute),
+        media_type="image/png",
+        filename=f"style-{style_id}-revision-{revision_id}.png",
     )
 
 
@@ -946,6 +1142,20 @@ async def post_cover_style_preview(
             style_id=style_id,
             size_preset_id=body.size_preset_id,
             force=body.force,
+            prompt_prefix=body.prompt_prefix,
+            prompt_template=body.prompt_template,
+            negative_prompt=body.negative_prompt,
+            design_analysis=body.design_analysis,
+            color_tokens=(
+                ColorTokens.model_validate(body.color_tokens.model_dump())
+                if body.color_tokens is not None
+                else None
+            ),
+            font_tokens=(
+                FontTokens.model_validate(body.font_tokens.model_dump())
+                if body.font_tokens is not None
+                else None
+            ),
         )
         await db.commit()
     except CoverStyleExampleError as err:

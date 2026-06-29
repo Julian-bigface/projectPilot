@@ -1,6 +1,6 @@
 [package]
 name = "project-pilot"
-version = "0.1.2"
+version = "0.2.0"
 description = "Project Pilot desktop shell"
 authors = ["Project Pilot"]
 edition = "2021"

@@ -1,4 +1,4 @@
-import { KeyRound, Loader2, LogOut, Settings } from "lucide-react"
+import { KeyRound, Languages, Loader2, LogOut, Sparkles } from "lucide-react"
 import { useState } from "react"
 import { Link } from "react-router"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
@@ -10,12 +10,14 @@ import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { useGithubSettingsDialog } from "@/context/github-settings-dialog"
+import { useTranslationSettingsDialog } from "@/context/translation-settings-dialog"
 import {
   fetchGithubProfile,
   fetchGithubSettings,
   putGithubSettings,
   type GithubProfileRead,
 } from "@/lib/settings-github"
+import { SETTINGS_AI_ROUTE } from "@/lib/settings-sections"
 import { cn } from "@/lib/utils"
 
 const menuItemClass =
@@ -38,6 +40,7 @@ type RailUserMenuProps = {
 export function RailUserMenu({ settingsActive = false }: RailUserMenuProps) {
   const queryClient = useQueryClient()
   const { openDialog: openGithubSettings } = useGithubSettingsDialog()
+  const { openDialog: openTranslationSettings } = useTranslationSettingsDialog()
   const [open, setOpen] = useState(false)
 
   const settingsQuery = useQuery({
@@ -128,13 +131,25 @@ export function RailUserMenu({ settingsActive = false }: RailUserMenuProps) {
             GitHub Token
           </button>
 
+          <button
+            type="button"
+            className={menuItemClass}
+            onClick={() => {
+              setOpen(false)
+              openTranslationSettings()
+            }}
+          >
+            <Languages className="text-muted-foreground size-4 shrink-0" aria-hidden />
+            翻译偏好
+          </button>
+
           <Link
-            to="/settings"
+            to={SETTINGS_AI_ROUTE.path}
             onClick={() => setOpen(false)}
             className={menuItemClass}
           >
-            <Settings className="text-muted-foreground size-4 shrink-0" aria-hidden />
-            设置
+            <Sparkles className="text-muted-foreground size-4 shrink-0" aria-hidden />
+            AI 工作室
           </Link>
         </div>
 

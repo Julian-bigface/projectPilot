@@ -22,6 +22,7 @@ type LibraryBrowseFiltersContextValue = LibraryBrowseFilterState & {
   setSelectedTagIds: (ids: number[] | ((prev: number[]) => number[])) => void
   setTagMatchMode: (mode: TagMatchMode) => void
   setSelectedFolderIds: (ids: number[] | ((prev: number[]) => number[])) => void
+  setAddedTimePreset: (preset: LibraryBrowseFilterState["addedTimePreset"]) => void
   toggleTagId: (id: number) => void
   toggleFolderId: (id: number) => void
   clearFilters: () => void
@@ -36,6 +37,7 @@ const EMPTY: LibraryBrowseFilterState = {
   selectedTagIds: [],
   tagMatchMode: "any",
   selectedFolderIds: [],
+  addedTimePreset: null,
 }
 
 export function LibraryBrowseFiltersProvider({ children }: { children: ReactNode }) {
@@ -100,6 +102,10 @@ export function LibraryBrowseFiltersProvider({ children }: { children: ReactNode
     []
   )
 
+  const setAddedTimePreset = useCallback((addedTimePreset: LibraryBrowseFilterState["addedTimePreset"]) => {
+    setState((prev) => ({ ...prev, addedTimePreset }))
+  }, [])
+
   const toggleTagId = useCallback((id: number) => {
     setState((prev) => {
       const has = prev.selectedTagIds.includes(id)
@@ -135,6 +141,7 @@ export function LibraryBrowseFiltersProvider({ children }: { children: ReactNode
       setSelectedTagIds,
       setTagMatchMode,
       setSelectedFolderIds,
+      setAddedTimePreset,
       toggleTagId,
       toggleFolderId,
       clearFilters,
@@ -147,6 +154,7 @@ export function LibraryBrowseFiltersProvider({ children }: { children: ReactNode
       setSelectedTagIds,
       setTagMatchMode,
       setSelectedFolderIds,
+      setAddedTimePreset,
       toggleTagId,
       toggleFolderId,
       clearFilters,

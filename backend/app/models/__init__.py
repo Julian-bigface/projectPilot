@@ -7,6 +7,7 @@ from app.models.content_factory_cover_style import (
     ContentFactoryCoverStyle,
     ContentFactoryStyleHidden,
 )
+from app.models.content_factory_cover_style_revision import ContentFactoryCoverStyleRevision
 from app.models.folder import Folder
 from app.models.project import Project
 from app.models.project_library import ProjectLibrary
@@ -16,6 +17,7 @@ __all__ = [
     "AppSetting",
     "Base",
     "ContentFactoryCoverStyle",
+    "ContentFactoryCoverStyleRevision",
     "ContentFactoryDraft",
     "ContentFactoryStyleHidden",
     "Folder",

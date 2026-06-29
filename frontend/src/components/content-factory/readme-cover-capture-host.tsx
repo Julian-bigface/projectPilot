@@ -349,6 +349,7 @@ const ReadmeCoverCaptureHostInner = forwardRef<ReadmeCoverCaptureHostHandle>(
                   enableHeadingAnchors={false}
                   enableHtml
                   imageLoading="eager"
+                  imageViaProxy
                   hideImageErrors
                 />
               </div>

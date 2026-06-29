@@ -16,7 +16,7 @@ from app.services.cover_style_design_analysis import CoverStyleDesignAnalysis
 
 ContentFactoryPlatform = Literal["xiaohongshu", "wechat", "twitter", "linkedin"]
 
-ContentFactoryStatus = Literal["draft", "generated"]
+ContentFactoryStatus = Literal["draft", "generated", "published"]
 
 ContentFactoryCoverTemplate = Literal[
 
@@ -251,11 +251,58 @@ class CoverStyleRefineResponse(BaseModel):
     style_report: str = ""
 
 
+class CoverStyleRevisionCreateRequest(BaseModel):
+    instruction: str = Field(min_length=1, max_length=2000)
+    design_analysis: CoverStyleDesignAnalysis | None = None
+    prompt_prefix: str = Field(min_length=1)
+    prompt_template: str = Field(min_length=1)
+    negative_prompt: str = ""
+    color_tokens: ColorTokensRead = Field(default_factory=ColorTokensRead)
+    font_tokens: FontTokensRead = Field(default_factory=FontTokensRead)
+    style_report: str | None = None
+
+
+class CoverStyleRevisionSummary(BaseModel):
+    id: int
+    revision_index: int
+    source: str
+    instruction: str | None = None
+    created_at: str
+    example_image_url: str | None = None
+
+
+class CoverStyleRevisionListResponse(BaseModel):
+    items: list[CoverStyleRevisionSummary] = Field(default_factory=list)
+
+
+class CoverStyleRevisionRead(BaseModel):
+    id: int
+    revision_index: int
+    source: str
+    instruction: str | None = None
+    created_at: str
+    design_analysis: CoverStyleDesignAnalysis | None = None
+    prompt_prefix: str
+    prompt_template: str
+    negative_prompt: str = ""
+    color_tokens: ColorTokensRead = Field(default_factory=ColorTokensRead)
+    font_tokens: FontTokensRead = Field(default_factory=FontTokensRead)
+    style_report: str | None = None
+    example_image_url: str | None = None
+
+
 class CoverStylePreviewRequest(BaseModel):
 
     size_preset_id: str = Field(default="xiaohongshu-34")
 
     force: bool = False
+
+    prompt_prefix: str | None = None
+    prompt_template: str | None = None
+    negative_prompt: str | None = None
+    design_analysis: CoverStyleDesignAnalysis | None = None
+    color_tokens: ColorTokensRead | None = None
+    font_tokens: FontTokensRead | None = None
 
 
 

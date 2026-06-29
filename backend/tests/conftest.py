@@ -17,6 +17,7 @@ from app.core.database import (
     _migrate_sqlite_cover_styles_global_scope,
     _migrate_sqlite_cover_styles_reference_image_path,
     _migrate_sqlite_cover_styles_design_analysis,
+    _migrate_sqlite_cover_style_revisions,
     _migrate_sqlite_discovery_cache_tables,
     _migrate_sqlite_project_libraries,
     _migrate_sqlite_repair_orphan_tag_categories,
@@ -66,6 +67,7 @@ async def client(tmp_path) -> AsyncGenerator[AsyncClient, None]:
         await conn.run_sync(_migrate_sqlite_cover_styles_global_scope)
         await conn.run_sync(_migrate_sqlite_cover_styles_reference_image_path)
         await conn.run_sync(_migrate_sqlite_cover_styles_design_analysis)
+        await conn.run_sync(_migrate_sqlite_cover_style_revisions)
         await conn.run_sync(_migrate_sqlite_repair_orphan_tag_categories)
 
     session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
@@ -103,6 +105,7 @@ async def db_session(tmp_path) -> AsyncGenerator[AsyncSession, None]:
         await conn.run_sync(_migrate_sqlite_cover_styles_global_scope)
         await conn.run_sync(_migrate_sqlite_cover_styles_reference_image_path)
         await conn.run_sync(_migrate_sqlite_cover_styles_design_analysis)
+        await conn.run_sync(_migrate_sqlite_cover_style_revisions)
 
     session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     async with session_factory() as session:

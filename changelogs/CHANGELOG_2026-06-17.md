@@ -71,3 +71,28 @@
 - ~~Phase 2：`cover-styles` 用户/AI 风格 CRUD、`recommend_cover_style` 场景。~~ ✅ 2026-06-22 见 [`CHANGELOG_2026-06-22.md`](./CHANGELOG_2026-06-22.md)。
 - Phase 2.5：参考图上传 + vision LLM 生成风格 prompt（非 Agent）。
 - 可选：README 与 AI 封面切换时清理过期 `cover_image_path` 预览歧义。
+
+---
+
+## 封面风格版本历史（Version Rail）
+
+### 范围
+
+- AI 调整应用成功后持久化完整风格快照（字段 + 示例图副本）；详情页示例图右侧纵向 Version Rail 可回退预览并写回编辑区。
+
+### 代码变更
+
+- **新建**：[`backend/app/models/content_factory_cover_style_revision.py`](../backend/app/models/content_factory_cover_style_revision.py)、[`backend/app/services/cover_style_revision.py`](../backend/app/services/cover_style_revision.py)。
+- **修改**：[`backend/app/core/database.py`](../backend/app/core/database.py) — `content_factory_cover_style_revisions` 表迁移。
+- **修改**：[`backend/app/services/readme_cover_storage.py`](../backend/app/services/readme_cover_storage.py) — revision 示例图副本路径与克隆。
+- **修改**：[`backend/app/api/content_factory.py`](../backend/app/api/content_factory.py) — `GET/POST .../cover-styles/{id}/revisions`。
+- **新建**：[`frontend/src/components/content-factory/cover-style-revision-rail.tsx`](../frontend/src/components/content-factory/cover-style-revision-rail.tsx)。
+- **修改**：[`frontend/src/components/content-factory/cover-style-manage-dialog.tsx`](../frontend/src/components/content-factory/cover-style-manage-dialog.tsx) — Rail 接入、`applyStyleRefine` 后创建 revision。
+- **测试**：[`backend/tests/test_cover_style_revision.py`](../backend/tests/test_cover_style_revision.py)。
+- **文档**：[`docs/PROJECT_PILOT_内容工厂_AI封面与视觉导演融合方案.md`](../docs/PROJECT_PILOT_内容工厂_AI封面与视觉导演融合方案.md) §8.3.8。
+- **契约**：[`contracts/openapi.json`](../contracts/openapi.json)。
+
+### 验证
+
+- `pytest backend/tests/test_cover_style_revision.py`
+- `python scripts/export_openapi.py`

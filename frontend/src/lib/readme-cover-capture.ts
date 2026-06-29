@@ -5,6 +5,11 @@ import {
   getCaptureImageCacheSize,
   setCachedInlineImage,
 } from "@/lib/readme-cover-image-cache"
+import {
+  isReadmeImageProxyUrl,
+  readmeImageProxyUrl,
+  wrapCrossOriginReadmeImage,
+} from "@/lib/readme-image-proxy"
 import { truncateReadmeHeroMarkdown } from "@/lib/readme-cover-truncate"
 import {
   DEFAULT_README_COVER_PRESET_ID,
@@ -61,9 +66,7 @@ export function cropHeightForWidth(
   return Math.round((sourceWidth * outputSize.height) / outputSize.width)
 }
 
-export function readmeImageProxyUrl(src: string): string {
-  return `/api/projects/readme-image-proxy?url=${encodeURIComponent(src)}`
-}
+export { readmeImageProxyUrl } from "@/lib/readme-image-proxy"
 
 function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -297,17 +300,21 @@ async function fetchIntoCaptureImageCache(
   if (!original || original.startsWith("data:") || original.startsWith("blob:")) {
     return null
   }
-  const hit = getCachedInlineImage(original)
+  const cacheKey = original
+  const hit = getCachedInlineImage(cacheKey)
   if (hit) {
     return hit
   }
+  const fetchUrl = isReadmeImageProxyUrl(original)
+    ? original
+    : readmeImageProxyUrl(original)
   try {
-    const res = await fetch(readmeImageProxyUrl(original), { signal })
+    const res = await fetch(fetchUrl, { signal })
     if (!res.ok) {
       return null
     }
     const dataUrl = await blobToDataUrl(await res.blob())
-    setCachedInlineImage(original, dataUrl)
+    setCachedInlineImage(cacheKey, dataUrl)
     return dataUrl
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") {
@@ -325,12 +332,18 @@ async function inlineOneCaptureImage(
   const original = img.currentSrc || img.src
   const hadCache = Boolean(original && getCachedInlineImage(original))
   const dataUrl = await fetchIntoCaptureImageCache(original, signal)
-  if (!dataUrl) {
+  if (dataUrl) {
+    img.src = dataUrl
+    img.removeAttribute("srcset")
+    return hadCache ? "cached" : "fetched"
+  }
+  const proxied = wrapCrossOriginReadmeImage(original)
+  if (proxied !== original) {
+    img.src = proxied
+    img.removeAttribute("srcset")
     return "skipped"
   }
-  img.src = dataUrl
-  img.removeAttribute("srcset")
-  return hadCache ? "cached" : "fetched"
+  return "skipped"
 }
 
 /** 将裁切区内外链图片转为 data URL；自上而下顺序内联，折外图不处理 */
@@ -571,8 +584,10 @@ export async function exportCoverBlob(
     blob = await toBlob(surface, toPngOptions(surface))
   } catch (err) {
     const detail =
-      err instanceof Error && err.message.trim()
-        ? err.message.trim()
+      err instanceof Error
+        ? [err.name !== "Error" ? err.name : "", err.message.trim()]
+            .filter(Boolean)
+            .join(": ") || "页面样式或外链图片无法导出"
         : "页面样式或外链图片无法导出"
     throw new Error(`截图失败：${detail}`)
   }

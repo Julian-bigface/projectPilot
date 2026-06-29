@@ -3,10 +3,13 @@
 
 from pathlib import Path
 
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 block_cipher = None
 backend_dir = Path(SPECPATH)
+_prompts_src = backend_dir / "app" / "prompts"
+# Runtime resolves app/prompts via Path(__file__).parent.parent / "prompts" (see content_factory_copy.py).
+_datas = [(str(_prompts_src), "app/prompts")] + collect_data_files("certifi")
 
 hiddenimports = (
     collect_submodules("uvicorn")
@@ -27,7 +30,7 @@ a = Analysis(
     [str(backend_dir / "desktop_entry.py")],
     pathex=[str(backend_dir)],
     binaries=[],
-    datas=[],
+    datas=_datas,
     hiddenimports=hiddenimports,
     hookspath=[],
     hooksconfig={},
@@ -55,7 +58,7 @@ exe = EXE(
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,
+    console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

@@ -1,8 +1,8 @@
 # Project Pilot
 
-本地 GitHub 项目探索管理工具：**浏览器 Web UI**（`frontend/`：React + Vite + Refine + shadcn/ui）+ **FastAPI 后端** + **SQLite**。**不使用 Tkinter 等原生桌面 GUI**；主交互即本地打开的网页。
+本地 GitHub 项目探索管理工具：**发现 → 资料库整理 → 项目详情 → 内容工厂（可选推广创作）**。**浏览器 Web UI**（`frontend/`：React + Vite + Refine + shadcn/ui）+ **FastAPI 后端** + **SQLite**。
 
-详细产品设计见 [docs/PROJECT_PILOT_v0.1_设计文档.md](docs/PROJECT_PILOT_v0.1_设计文档.md) 与 [docs/PROJECT_PILOT_Implementation_Plan.md](docs/PROJECT_PILOT_Implementation_Plan.md)。**桌面化（Tauri + sidecar）** 见 [docs/PROJECT_PILOT_Desktop_Engineering_Guide.md](docs/PROJECT_PILOT_Desktop_Engineering_Guide.md)；**发版与 GitHub Releases** 见 [docs/PROJECT_PILOT_Release_Checklist.md](docs/PROJECT_PILOT_Release_Checklist.md)。协作约定见 [AGENTS.md](AGENTS.md)、[WORKSPACE.md](WORKSPACE.md)。**每次开发请更新** [changelogs/](changelogs/README.md) 中当日的 `CHANGELOG_YYYY-MM-DD.md`（同一天多次变更写在同一文件）。**Changelog 正文排版**须遵守 [changelogs/README.md](changelogs/README.md) 中的 **「正文格式（固定写法）」**，与 [`CHANGELOG_2026-05-10.md`](changelogs/CHANGELOG_2026-05-10.md)、[`CHANGELOG_2026-05-12.md`](changelogs/CHANGELOG_2026-05-12.md)、[`CHANGELOG_2026-05-14.md`](changelogs/CHANGELOG_2026-05-14.md) 等往期一致。
+详细产品设计见 [docs/PROJECT_PILOT_v0.1_设计文档.md](docs/PROJECT_PILOT_v0.1_设计文档.md) 与 [docs/PROJECT_PILOT_Implementation_Plan.md](docs/PROJECT_PILOT_Implementation_Plan.md)。**未完成项快照**见 [docs/PROJECT_PILOT_待办清单_2026-06-27.md](docs/PROJECT_PILOT_待办清单_2026-06-27.md)。**桌面化（Tauri + sidecar）** 见 [docs/PROJECT_PILOT_Desktop_Engineering_Guide.md](docs/PROJECT_PILOT_Desktop_Engineering_Guide.md)；**发版与 GitHub Releases** 见 [docs/PROJECT_PILOT_Release_Checklist.md](docs/PROJECT_PILOT_Release_Checklist.md)。协作约定见 [AGENTS.md](AGENTS.md)、[WORKSPACE.md](WORKSPACE.md)。**每次开发请更新** [changelogs/](changelogs/README.md) 中当日的 `CHANGELOG_YYYY-MM-DD.md`（同一天多次变更写在同一文件）。**Changelog 正文排版**须遵守 [changelogs/README.md](changelogs/README.md) 中的 **「正文格式（固定写法）」**，与 [`CHANGELOG_2026-05-10.md`](changelogs/CHANGELOG_2026-05-10.md)、[`CHANGELOG_2026-05-12.md`](changelogs/CHANGELOG_2026-05-12.md)、[`CHANGELOG_2026-05-14.md`](changelogs/CHANGELOG_2026-05-14.md) 等往期一致。
 
 ## 环境要求
 

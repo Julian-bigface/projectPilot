@@ -4,6 +4,8 @@ import type {
   ContentFactoryCoverStyle,
   ContentFactoryDraft,
   CoverStyleDesignAnalysis,
+  CoverStyleRevisionRead,
+  CoverStyleRevisionSummary,
   GenerateCopyResponse,
   UploadCoverResponse,
   OptimizeSelectionResponse,
@@ -60,7 +62,7 @@ export async function patchContentFactoryDraft(
     title: string | null
     body: string | null
     body_json: ContentFactoryCopyJson | null
-    status: "draft" | "generated"
+    status: "draft" | "generated" | "published"
   }>
 ): Promise<ContentFactoryDraft> {
   const res = await fetch(`${draftsBase(libraryId)}/${draftId}`, {
@@ -401,6 +403,91 @@ export async function refineContentFactoryCoverStyle(
   return res.json()
 }
 
+export async function fetchContentFactoryCoverStyleRevisions(
+  libraryId: number,
+  styleId: string
+): Promise<{ items: CoverStyleRevisionSummary[] }> {
+  const res = await fetch(
+    plApiPath(
+      libraryId,
+      `/content-factory/cover-styles/${encodeURIComponent(styleId)}/revisions`
+    )
+  )
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error((err as { detail?: string }).detail || res.statusText)
+  }
+  return res.json() as Promise<{ items: CoverStyleRevisionSummary[] }>
+}
+
+export async function fetchContentFactoryCoverStyleRevision(
+  libraryId: number,
+  styleId: string,
+  revisionId: number
+): Promise<CoverStyleRevisionRead> {
+  const res = await fetch(
+    plApiPath(
+      libraryId,
+      `/content-factory/cover-styles/${encodeURIComponent(styleId)}/revisions/${revisionId}`
+    )
+  )
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error((err as { detail?: string }).detail || res.statusText)
+  }
+  return res.json() as Promise<CoverStyleRevisionRead>
+}
+
+export async function createContentFactoryCoverStyleRevision(
+  libraryId: number,
+  styleId: string,
+  body: {
+    instruction: string
+    design_analysis?: CoverStyleDesignAnalysis | null
+    prompt_prefix: string
+    prompt_template: string
+    negative_prompt?: string
+    color_tokens?: ContentFactoryCoverStyle["color_tokens"]
+    font_tokens?: ContentFactoryCoverStyle["font_tokens"]
+    style_report?: string | null
+  }
+): Promise<CoverStyleRevisionRead> {
+  const res = await fetch(
+    plApiPath(
+      libraryId,
+      `/content-factory/cover-styles/${encodeURIComponent(styleId)}/revisions`
+    ),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  )
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error((err as { detail?: string }).detail || res.statusText)
+  }
+  return res.json() as Promise<CoverStyleRevisionRead>
+}
+
+export async function deleteContentFactoryCoverStyleRevision(
+  libraryId: number,
+  styleId: string,
+  revisionId: number
+): Promise<void> {
+  const res = await fetch(
+    plApiPath(
+      libraryId,
+      `/content-factory/cover-styles/${encodeURIComponent(styleId)}/revisions/${revisionId}`
+    ),
+    { method: "DELETE" }
+  )
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error((err as { detail?: string }).detail || res.statusText)
+  }
+}
+
 export async function refineContentFactoryCoverStylePromptTemplate(
   libraryId: number,
   body: {
@@ -424,17 +511,35 @@ export async function refineContentFactoryCoverStylePromptTemplate(
   return res.json() as Promise<{ prompt_template: string }>
 }
 
+export type CoverStylePreviewPromptOverride = {
+  prompt_prefix?: string
+  prompt_template?: string
+  negative_prompt?: string
+  design_analysis?: ContentFactoryCoverStyle["design_analysis"]
+  color_tokens?: ContentFactoryCoverStyle["color_tokens"]
+  font_tokens?: ContentFactoryCoverStyle["font_tokens"]
+}
+
 export async function previewContentFactoryCoverStyle(
   libraryId: number,
   styleId: string,
-  body?: { size_preset_id?: string; force?: boolean }
+  body?: {
+    size_preset_id?: string
+    force?: boolean
+  } & CoverStylePreviewPromptOverride
 ): Promise<{ style_id: string; example_image_url: string }> {
+  const { size_preset_id, force, ...promptFields } = body ?? {}
+  const hasPromptOverride = Object.values(promptFields).some((v) => v !== undefined)
   const res = await fetch(
     plApiPath(libraryId, `/content-factory/cover-styles/${encodeURIComponent(styleId)}/preview`),
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body ?? {}),
+      body: JSON.stringify({
+        size_preset_id,
+        force,
+        ...(hasPromptOverride ? promptFields : {}),
+      }),
     }
   )
   if (!res.ok) {

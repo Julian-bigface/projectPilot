@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { ChevronDown, FilePlus, Loader2, RefreshCw } from "lucide-react"
+import { CheckCircle2, ChevronDown, FilePlus, Loader2, RefreshCw } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { NavLink, useNavigate, useParams } from "react-router"
 import { toast } from "sonner"
@@ -68,6 +68,10 @@ type DraftSidebarItemProps = {
   onDelete: (draft: ContentFactoryDraft) => void
 }
 
+function draftIsPublished(draft: ContentFactoryDraft): boolean {
+  return draft.status === "published" || Boolean(draft.body_json?.published_at)
+}
+
 function DraftSidebarItem({
   draft,
   active,
@@ -76,6 +80,7 @@ function DraftSidebarItem({
   onDelete,
 }: DraftSidebarItemProps) {
   const label = draftDisplayTitle(draft)
+  const published = draftIsPublished(draft)
 
   return (
     <ContextMenu>
@@ -89,9 +94,22 @@ function DraftSidebarItem({
                 active ? "bg-accent" : "hover:bg-muted/60"
               )}
             >
-              <div className="text-foreground truncate font-semibold">{label}</div>
-              <div className="text-muted-foreground mt-0.5 truncate text-[10px]">
-                {draft.project.full_name}
+              <div className="flex items-start gap-1.5">
+                <div className="min-w-0 flex-1">
+                  <div className="text-foreground truncate font-semibold">{label}</div>
+                  <div className="text-muted-foreground mt-0.5 truncate text-[10px]">
+                    {draft.project.full_name}
+                  </div>
+                </div>
+                {published ? (
+                  <span
+                    className="text-emerald-600 flex shrink-0 items-center gap-0.5 text-[10px] font-medium"
+                    title="已发布"
+                  >
+                    <CheckCircle2 className="size-3" aria-hidden />
+                    已发布
+                  </span>
+                ) : null}
               </div>
             </NavLink>
           </HoverCardTrigger>

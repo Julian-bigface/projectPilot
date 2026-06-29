@@ -60,6 +60,24 @@ function Test-BuiltFrontendResources {
 
 Stop-ProjectPilotProcesses
 
+function Invoke-RegenerateAppIcons {
+    param([string]$RootPath)
+
+    $iconSource = Join-Path $RootPath "assets\branding\project-pilot-app-icon.png"
+    if (-not (Test-Path $iconSource)) {
+        throw "Missing branding icon source: $iconSource"
+    }
+    Write-Host "==> Regenerating Tauri icons from $iconSource ..."
+    npx --prefix (Join-Path $RootPath "frontend") tauri icon $iconSource -o (Join-Path $RootPath "src-tauri\icons")
+    foreach ($required in @("icon.ico", "icon.png", "32x32.png", "128x128.png")) {
+        $path = Join-Path $RootPath "src-tauri\icons\$required"
+        if (-not (Test-Path $path)) {
+            throw "Icon generation failed: missing $path"
+        }
+    }
+    Write-Host "==> App icons OK (icon.ico + platform PNGs)"
+}
+
 $TauriConfPath = Join-Path $Root "src-tauri\tauri.conf.json"
 $TauriConfText = Get-Content $TauriConfPath -Raw -Encoding UTF8
 if ($TauriConfText -notmatch '"version"\s*:\s*"([^"]+)"') {
@@ -67,13 +85,19 @@ if ($TauriConfText -notmatch '"version"\s*:\s*"([^"]+)"') {
 }
 $AppVersion = $Matches[1]
 
+Invoke-RegenerateAppIcons -RootPath $Root
+
 & (Join-Path $Root "scripts\build-sidecar.ps1")
 
 $ResourcesDist = Join-Path $Root "src-tauri\resources\dist"
 Test-BuiltFrontendResources -ResourcesDist $ResourcesDist -ExpectedVersion $AppVersion
 
 Write-Host "==> Building Tauri bundle (from repo root)..."
+$env:CARGO_TARGET_DIR = Join-Path $Root "src-tauri\target"
 npx --prefix frontend tauri build --config src-tauri/tauri.conf.json
+if ($LASTEXITCODE -ne 0) {
+    throw "Tauri build failed (exit code $LASTEXITCODE). Fix tauri.conf.json / compile errors above."
+}
 
 Test-BuiltFrontendResources -ResourcesDist $ResourcesDist -ExpectedVersion $AppVersion
 
@@ -98,8 +122,14 @@ Write-Host "    Version: $AppVersion"
 Write-Host "    Release exe: $(Join-Path $Root 'src-tauri\target\release\project-pilot.exe')"
 if ($LatestInstaller) {
     Write-Host "    Installer:   $($LatestInstaller.FullName)"
+    $ArtifactsDir = Join-Path $Root "release-artifacts"
+    New-Item -ItemType Directory -Force -Path $ArtifactsDir | Out-Null
+    $ArtifactPath = Join-Path $ArtifactsDir $LatestInstaller.Name
+    Copy-Item -Force $LatestInstaller.FullName $ArtifactPath
+    Write-Host "    Copied to:   $ArtifactPath"
     Write-Host ""
     Write-Host "    Install this file (not older 0.1.0 / 0.1.1 setups in the same folder)."
+    Write-Host "    If desktop/taskbar icons look stale: delete old desktop shortcut, reinstall, unpin/repin taskbar."
 } else {
     Write-Host "    Installers under: $(Join-Path $Root 'src-tauri\target\release\bundle\nsis')"
 }

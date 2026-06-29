@@ -1,8 +1,9 @@
 # Project Pilot — 实现计划
 
 > 产品设计：[[PROJECT_PILOT_Design.canvas]]
-> 文档版本：v1.0
-> 更新日期：2026-05-14
+> 文档版本：**v1.2**
+> 更新日期：**2026-06-27**
+> 状态快照：与 [`CHANGELOG_2026-06-27.md`](../changelogs/CHANGELOG_2026-06-27.md) 及代码一致。**产品方向**见 v0.1 设计文档 [§0](../docs/PROJECT_PILOT_v0.1_设计文档.md#0-方向修订2026-06-27)（不再做看板/部署辅助）。待办见 [`PROJECT_PILOT_待办清单_2026-06-27.md`](./PROJECT_PILOT_待办清单_2026-06-27.md)
 
 ---
 
@@ -142,103 +143,96 @@ projects ─────────< project_tags >──────── tag
 
 ## 四、实现阶段
 
-### 📦 Phase 1：项目脚手架 + 数据库基础
+### 📦 Phase 1：项目脚手架 + 数据库基础 ✅
 **目标**：跑通前后端架子，完成项目 CRUD
 
-- [ ] 初始化 FastAPI 项目结构
+- [x] 初始化 FastAPI 项目结构
   - `app/main.py` — 入口
   - `app/api/` — API 路由
   - `app/models/` — SQLAlchemy 模型
   - `app/schemas/` — Pydantic 请求/响应模型
   - `app/core/` — 配置、数据库连接
-- [ ] 初始化 SQLite 数据库 + 建表脚本
-- [ ] 实现项目基础 CRUD API
+- [x] 初始化 SQLite 数据库 + 建表脚本
+- [x] 实现项目基础 CRUD API
   - `GET /projects` — 列表（状态筛选；`deleted_only` 仅回收站）
-  - `POST /projects` — 创建（手动录入，不含 AI）
+  - `POST /projects` — 创建（手动录入 + GitHub enrich，见 Phase 2）
   - `GET /projects/{id}` — 详情（已软删返回 404）
   - `PATCH /projects/{id}` — 更新（已软删返回 404）
   - `DELETE /projects/{id}` — 软删除（移入回收站）
   - `POST /projects/{id}/restore` — 从回收站恢复
   - `DELETE /projects/{id}/permanent` — 彻底删除（仅回收站内）
-- [ ] 初始化 React + Refine + shadcn/ui 前端
-- [ ] 搭建基础布局：侧边栏 + 主内容区
-- [ ] 搭建简单看板视图（前端模拟数据，不连 API）
+- [x] 初始化 React + Refine + shadcn/ui 前端
+- [x] 搭建基础布局：语雀式功能区 + 库侧栏 + 主内容区（见 [`CHANGELOG_2026-05-08.md`](../changelogs/CHANGELOG_2026-05-08.md)）
+- [x] 搭建看板视图（`/projects/board`，连 API + 下拉切换状态，见 [`board.tsx`](../frontend/src/pages/projects/board.tsx)）
 
-**产出**：前后端可独立运行，基础看板界面可见
+**产出**：前后端可独立运行，基础看板界面可见 ✅
 
 ---
 
-### 🔌 Phase 2：GitHub 数据拉取 + AI 摘要
+### 🔌 Phase 2：GitHub 数据拉取 + AI 摘要（部分完成）
 **目标**：粘贴 URL → 自动填满项目基础信息 + AI 摘要
 
-- [ ] 实现 GitHub API 集成
-  - 获取仓库基础信息（stars、language、license）
-  - 获取并解析 README.md 内容
-  - 解析仓库根目录的部署相关文件（Dockerfile、docker-compose.yml、Makefile、package.json 等）
-- [ ] 实现 AI 摘要服务
-  - 调用 OpenAI API（或兼容接口）解析 README
-  - 生成结构化摘要：项目核心能力、适用场景、部署方式列表
-  - 提取部署方式标签（Docker / npm / pip / pipx / 二进制 / 源码 / 在线 Demo）
-- [ ] 完善 `POST /projects` API
-  - 接收 GitHub URL
-  - 异步拉取 GitHub 数据（可后台任务）
-  - AI 解析 + 标签生成
-  - 存入数据库，返回完整项目信息
-- [ ] 前端添加项目弹窗：输入 GitHub URL → 显示加载状态 → 显示解析结果 → 确认添加
+- [x] 实现 GitHub API 集成
+  - [x] 获取仓库基础信息（stars、language、license 等）— `try_enrich_project_from_github`
+  - [x] 获取并解析 README.md 内容 — `GET /projects/{id}/readme`、详情 Tab
+  - [x] Release 列表 — `GET /projects/{id}/releases`
+  - [ ] 解析仓库根目录的部署相关文件（Dockerfile、docker-compose.yml 等）→ 自动 `deploy_methods`
+- [~] 实现 AI 摘要服务 — **战略放弃**（见 [`PROJECT_PILOT_AI_Agent_接入分析.md`](./PROJECT_PILOT_AI_Agent_接入分析.md)）；项目理解改 **Zread / DeepWiki 外链** + 可选手动 `ai_summary` 字段
+- [x] 完善 `POST /projects` API
+  - [x] 接收 GitHub URL，创建后 `try_enrich_project_from_github`
+  - [ ] 异步后台任务 + AI 解析 + 部署标签自动生成
+- [x] 前端添加项目：侧栏 / 树 **GitHub URL** 录入 + enrich（[`library-sidebar.tsx`](../frontend/src/components/layout/library-sidebar.tsx)）
 
-**产出**：粘贴 GitHub URL，3-5 秒内自动完成信息填充
+**产出**：粘贴 GitHub URL 可自动填充 REST 元数据 ✅；AI 摘要 / 部署文件解析仍待办或已放弃
 
 ---
 
-### 📋 Phase 3：看板 + 标签 + 筛选
-**目标**：完整看板交互 + 标签系统 + 多维筛选
+### 📋 Phase 3：资料库 + 标签 + 筛选（大部分完成）
+**目标**：资料库整理 + 标签系统 + 多维筛选（**不含**看板模块）
 
-- [ ] 完善四列看板
-  - 未体验 / 正在体验 / 推荐归档 / 放弃归档
-  - 拖拽卡片切换状态（可选，先做按钮切换）
-  - 归档列内分区展示（推荐区 / 放弃区）
-- [ ] 标签系统
+- [~] **四列看板** — **移出产品**（2026-06-27）；代码 `/projects/board` 仍存但入口关闭；`projects.state` 字段保留、不扩展看板 UI
+  - [~] 拖拽 / 归档内分区 / 看板页筛选 — 随看板一并 **不再规划**
+- [x] 标签系统
   - [x] 数据与 API：`tag_categories`；`tags` / `project_tags`；`category_id` 可空（未分类）；`GET/POST/PATCH/DELETE /tags`、`/tag-categories`；`usage_count` / `category_name`
   - [x] 资料库 **标签管理**：**所有标签**、**标签分类**（自建分类 + 未分类首栏、**拖拽**归类）、搜索、创建标签/分类、删除（标签有关联项目时 409；删分类则标签回未分类）；拖拽侧见 [`CHANGELOG_2026-05-13.md`](../changelogs/CHANGELOG_2026-05-13.md)（`DragOverlay`、分类栏碰撞、乐观更新、**无**浮层退回动画）
   - [x] 项目与标签绑定：`PATCH /projects/{id}` 的 `tag_ids`；侧栏 **无标签** + `GET /projects?missing_tags=true`；详情页勾选编辑（闭环 `usage_count`）
-  - [ ] 部署信息自动生成标签（待 Phase 2 流水线接入 `project_tags`，可与分类策略另定）
+  - [x] **标签 AI 分类**（P0）：`suggest-categories` / `apply-category-suggestions` + 标签管理 UI（见 [`CHANGELOG_2026-06-02.md`](../changelogs/CHANGELOG_2026-06-02.md)）
+  - [~] 部署信息自动生成标签 — **不再规划**（不做部署文件解析）
   - [x] 项目详情页显示 + 编辑标签（见上一项）
-- [ ] 筛选与搜索
-  - 按状态筛选
-  - 按标签 / 分类筛选（多选，待与项目绑定标签一并实现）
-  - 按语言筛选
-  - 按 Stars 范围筛选
-  - 全文搜索（名称 + 描述 + AI 摘要）
-- [ ] 项目详情页（**进行中**，见 [`CHANGELOG_2026-05-17.md`](../changelogs/CHANGELOG_2026-05-17.md)）
+- [x] 筛选与搜索（资料库主区，见 [`CHANGELOG_2026-05-16.md`](../changelogs/CHANGELOG_2026-05-16.md)）
+  - [x] 按标签 / 分类筛选（多选，或/且）
+  - [x] 按文件夹多选筛选
+  - [x] 全文搜索（名称等，`browseFilters.searchQuery`）
+  - [x] 按 **添加时间** 快捷筛选（最近 7/30/90/365 天，资料库 `LibraryBrowseToolbar` 客户端过滤）
+  - [ ] 看板页按状态 / 标签 / 语言 / Stars / 时间范围筛选 — **随看板废止**
+  - [ ] 全文搜索扩展至 AI 摘要 / 笔记字段
+- [x] 项目详情页（见 [`CHANGELOG_2026-05-17.md`](../changelogs/CHANGELOG_2026-05-17.md)）
   - [x] Steam 式英雄区 + README / Release / 笔记 Tab；`GET .../readme`、`GET .../releases`；进入页 `refresh-github?scope=stats`
   - [x] 简介双击编辑；领域标签「+」；Tab 栏「更多信息」（含许可证等）；`notes` 字段与笔记 Tab
   - [x] **机器翻译**：`/settings/translation`；简介 Sparkles 翻译；README 分段翻译 + 右键菜单 + 重试失败段（见 [`CHANGELOG_2026-05-24.md`](../changelogs/CHANGELOG_2026-05-24.md)）
   - [x] Release 卡片：标题链 GitHub；Tab 内容区无外层边框（仅卡片边框）
   - [ ] 完整展示所有字段 / 站内编辑 name·full_name（详情页已移除身份编辑入口）
-  - [ ] 跳转 Demo、部署日志、独立笔记 API 路由
+  - [ ] 跳转 Demo（可选）
+  - [~] 部署日志 Tab — **不再规划**
 
-**产出**：看板可正常流转，筛选实时生效
+**产出**：资料库筛选与详情主路径可用 ✅
 
 ---
 
-### 📝 Phase 4：部署日志 + 个人笔记
-**目标**：每个项目有独立的部署记录和笔记
+### 📝 Phase 4：个人笔记（部分完成；部署日志已移出方向）
+**目标**：项目详情内可持续沉淀笔记
 
-- [ ] 部署日志
-  - `POST /projects/{id}/deploy-logs` — 记录一条部署
-  - `GET /projects/{id}/deploy-logs` — 列表
-  - 字段：时间、方式（Docker/npm/pip/其他）、启动命令、备注
-  - 前端：在项目详情页添加「记录本次部署」入口
-- [ ] 个人笔记
+- [~] **部署日志** — **不再规划**（2026-06-27 产品方向调整）
+- [x] 个人笔记
   - [x] 详情页「笔记」Tab：`projects.notes` + `PATCH /projects/{id}`（`notes` 字段）；显式保存 / Ctrl+S（见 2026-05-17 changelog）
   - [ ] 独立 `GET/PATCH /projects/{id}/notes` 路由（可选）
   - [ ] Markdown 编辑器增强（当前为 `Textarea` + 纯文本）
-  - 保存时自动更新 `updated_at`（随项目 `PATCH` 已生效）
-- [ ] 状态变更记录
-  - 切换状态时自动记录 `state_changed_at`
-  - 归档时可选填写结论（推荐理由 / 放弃原因）
+  - [x] 保存时自动更新 `updated_at`（随项目 `PATCH` 已生效）
+- [x] 状态变更记录（部分）
+  - [x] 切换状态时自动记录 `state_changed_at`（`PATCH` 更新 state 时写入）
+  - [~] 归档结论表单 — 随看板流转 **不再规划**
 
-**产出**：项目详情页完整，部署记录和笔记可持续沉淀
+**产出**：笔记可用 ✅
 
 ---
 
@@ -283,27 +277,40 @@ projects ─────────< project_tags >──────── tag
 
 ---
 
-### ✨ Phase 6：优化 + 打包 + 部署
+### ✨ Phase 6：优化 + 打包 + 部署（部分完成）
 **目标**：本地一键启动，可靠易用
 
-- [ ] 环境变量 / 配置文件
-  - 数据库路径
-  - Obsidian 库路径
-  - OpenAI API Key
-  - 监听地址（默认 127.0.0.1）
+- [x] 环境变量 / 配置文件（部分）
+  - [x] GitHub Token、AI 设置（KV + `/settings/ai`）
+  - [x] 翻译、内容工厂资产目录等
+  - [ ] 统一 Obsidian 库路径、数据库路径文档化配置项
 - [ ] Docker 一键部署（可选）
   - `docker-compose.yml`：FastAPI + 前端 Build
   - 用户一条命令启动整个服务
-- [ ] 前端优化
-  - 加载状态优化（骨架屏）
-  - 空状态提示（看板为空时）
-  - 移动端基础适配
-- [ ] 错误处理
-  - GitHub API 限流提示
-  - AI 服务不可用降级处理
-  - 网络异常友好提示
+- [x] 前端优化（部分）
+  - [x] 欢迎页、发现中心、资料库空态与加载态
+  - [ ] 看板空状态、系统骨架屏、移动端基础适配
+- [x] 错误处理（部分）
+  - [x] GitHub / AI 无 Key 门禁与设置引导（多处）
+  - [ ] GitHub API 限流统一提示、网络异常全覆盖
 
-**产出**：本地安装后两条命令启动，用户体验流畅
+**产出**：Web 双终端 + 桌面 Phase 0 可开发 ✅；Docker / 全面体验优化仍待办
+
+---
+
+## 补充：资料库扩展、发现中心、内容工厂、桌面（2026-06-27 快照）
+
+| 模块 | 状态 | 要点 / 文档 |
+|------|------|-------------|
+| **项目库层级** | ✅ | `/libraries` 首页、scoped API、文件夹包 — [`CHANGELOG_2026-05-27.md`](../changelogs/CHANGELOG_2026-05-27.md) |
+| **发现中心** | ✅ | 五频道、无限滚动 — [`CHANGELOG_2026-05-30.md`](../changelogs/CHANGELOG_2026-05-30.md) |
+| **桌面 Phase 0** | ✅ 代码 / ⏳ 冒烟 | Tauri + sidecar — [`PROJECT_PILOT_Desktop_Engineering_Guide.md`](./PROJECT_PILOT_Desktop_Engineering_Guide.md) |
+| **内容工厂 Step 1–4** | ✅ | 选择项目 → 分析 → 编辑优化 → 导出发布 — [`CHANGELOG_2026-06-26.md`](../changelogs/CHANGELOG_2026-06-26.md) |
+| **README 封面** | ✅ | DOM 截图 1242×1660 — [`CHANGELOG_2026-06-12.md`](../changelogs/CHANGELOG_2026-06-12.md) |
+| **AI 封面 Phase 1** | ✅ | 5 内置风格 + `generate-ai-cover` — [`CHANGELOG_2026-06-17.md`](../changelogs/CHANGELOG_2026-06-17.md) |
+| **风格库 Phase 2 / 2.5** | ✅ | CRUD、vision 参考图、AI refine — [`CHANGELOG_2026-06-22.md`](../changelogs/CHANGELOG_2026-06-22.md)、[`CHANGELOG_2026-06-25.md`](../changelogs/CHANGELOG_2026-06-25.md) |
+| **轮播图 / 多图发布** | ⏳ | UI Tab disabled；`publish_images[]` 待办 — 融合方案 Phase 3、06-26 后续建议 |
+| **首次 GitHub Release** | ⏳ | 整清单未执行 — [`PROJECT_PILOT_Release_Checklist.md`](./PROJECT_PILOT_Release_Checklist.md) |
 
 ---
 
@@ -313,10 +320,11 @@ projects ─────────< project_tags >──────── tag
 |---|---|---|---|
 | P0 | Phase 1 | 能跑起来 | 必做 |
 | P0 | Phase 2 | 解决「信息碎片化」痛点 | 必做 |
-| P0 | Phase 3 | 解决「分类混乱」痛点 | 必做 |
-| P1 | Phase 4 | 解决「部署记录缺失」痛点 | 强烈建议 |
-| P2 | Phase 5 | Obsidian 联动 + 快捷收藏 | 有余力做 |
-| P3 | Phase 6 | 优化体验 | 最后做 |
+| P0 | Phase 3 | 资料库 + 标签 + 筛选 | 必做 ✅ |
+| ~~P1~~ | ~~Phase 4 部署日志~~ | — | **已移出方向** |
+| P1 | 内容工厂 / 详情增强 | 创作与理解 | 当前主线 |
+| P2 | Phase 5 | Obsidian + 快捷收藏 | 有余力 |
+| P3 | Phase 6 | 优化 + 桌面发版 | 工程化 |
 
 ---
 
@@ -365,3 +373,6 @@ project-pilot/
 | 2026-04-30 | AI 摘要支持 OpenAI API + 本地模型双模式 | 用户可根据自身情况灵活切换 |
 | 2026-04-30 | 初始状态默认为「未体验」 | 保守策略，不会遗漏任何一个项目 |
 | 2026-04-30 | 看板列：推荐/放弃归档内分区展示 | 避免列过多难以浏览，同时保留分类信息 |
+| 2026-06-02 | 不做 README LLM 自动摘要 | 改 Zread/DeepWiki；见 AI Agent 接入分析 v2 |
+| 2026-06-27 | 实现计划 v1.1 状态同步 | 勾选与代码 / changelog 对齐 |
+| 2026-06-27 | **移出看板与部署辅助** | 重心转向资料库 + 详情 + 内容工厂；见 v0.1 §0 |

@@ -11,6 +11,7 @@ import { openExternalUrl, isDesktopShell } from "@/lib/open-external-url"
 import { isReadmeBadgeImage, isReadmeHeroBadgeImage } from "@/lib/readme-image-kind"
 import { resolveReadmeRepoPath } from "@/lib/readme-link-resolve"
 import { resolveReadmeImageSrc, resolveReadmeSrcSet } from "@/lib/readme-media-resolve"
+import { wrapCrossOriginReadmeImage } from "@/lib/readme-image-proxy"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 
@@ -95,6 +96,7 @@ function ReadmeMarkdownImage({
   readmeBasePath,
   loading = "lazy",
   crossOrigin,
+  imageViaProxy = false,
   hideOnError = false,
 }: {
   src?: string
@@ -103,13 +105,18 @@ function ReadmeMarkdownImage({
   readmeBasePath?: string | null
   loading?: "lazy" | "eager"
   crossOrigin?: "anonymous"
+  /** 封面截图：外链图走同源代理，避免 canvas 跨域 */
+  imageViaProxy?: boolean
   /** 封面截图等场景：加载失败时不展示占位卡片 */
   hideOnError?: boolean
 }) {
-  const resolvedSrc = useMemo(
-    () => resolveReadmeImageSrc(src, githubUrl, readmeBasePath),
-    [src, githubUrl, readmeBasePath]
-  )
+  const resolvedSrc = useMemo(() => {
+    const base = resolveReadmeImageSrc(src, githubUrl, readmeBasePath)
+    if (!base) {
+      return base
+    }
+    return imageViaProxy ? wrapCrossOriginReadmeImage(base) : base
+  }, [src, githubUrl, readmeBasePath, imageViaProxy])
   const [retryKey, setRetryKey] = useState(0)
   const [failed, setFailed] = useState(false)
 
@@ -166,6 +173,8 @@ export type MarkdownContentProps = {
   enableHtml?: boolean
   imageLoading?: "lazy" | "eager"
   imageCrossOrigin?: "anonymous"
+  /** 封面截图：外链图经 /api/projects/readme-image-proxy 同源加载 */
+  imageViaProxy?: boolean
   hideImageErrors?: boolean
 }
 
@@ -178,6 +187,7 @@ export function MarkdownContent({
   enableHtml = false,
   imageLoading = "lazy",
   imageCrossOrigin,
+  imageViaProxy = false,
   hideImageErrors = false,
 }: MarkdownContentProps) {
   const enableReadmeNav = Boolean(githubUrl && onReadmeNavigate)
@@ -222,6 +232,7 @@ export function MarkdownContent({
           readmeBasePath={readmeBasePath}
           loading={imageLoading}
           crossOrigin={imageCrossOrigin}
+          imageViaProxy={imageViaProxy}
           hideOnError={hideImageErrors}
         />
       )

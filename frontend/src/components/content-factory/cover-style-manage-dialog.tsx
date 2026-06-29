@@ -37,6 +37,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
 import { CoverStyleAiRefineButton } from "@/components/content-factory/cover-style-ai-refine-button"
+import { CoverStyleRevisionRail } from "@/components/content-factory/cover-style-revision-rail"
 import { CoverStyleDesignAnalysisEditor } from "@/components/content-factory/cover-style-design-analysis-editor"
 import {
   AlertDialog,
@@ -52,7 +53,11 @@ import { useAutoScrollbarVisible } from "@/hooks/use-auto-scrollbar-visible"
 import { useCoverStyleDisplayOrder } from "@/hooks/use-cover-style-display-order"
 import {
   createContentFactoryCoverStyle,
+  createContentFactoryCoverStyleRevision,
   deleteContentFactoryCoverStyle,
+  deleteContentFactoryCoverStyleRevision,
+  fetchContentFactoryCoverStyleRevision,
+  fetchContentFactoryCoverStyleRevisions,
   fetchContentFactoryCoverStyles,
   forkContentFactoryCoverStyle,
   patchContentFactoryCoverStyle,
@@ -73,7 +78,11 @@ import {
 } from "@/lib/recommend-image-ready"
 import { cn } from "@/lib/utils"
 import { topicPillClass } from "@/lib/topic-pill-palette"
-import type { ContentFactoryCoverStyle, CoverStyleDesignAnalysis } from "@/types/content-factory"
+import type {
+  ContentFactoryCoverStyle,
+  CoverStyleDesignAnalysis,
+  CoverStyleRevisionSummary,
+} from "@/types/content-factory"
 
 const PROMPT_FIELDS = ["prompt_prefix", "prompt_template", "negative_prompt"] as const
 type PromptField = (typeof PROMPT_FIELDS)[number]
@@ -86,6 +95,91 @@ const PROMPT_FIELD_LABELS: Record<PromptField, string> = {
   prompt_prefix: "画面前缀",
   prompt_template: "提示词模板",
   negative_prompt: "负向提示词",
+}
+
+function coverStyleDraftDiffersFromSaved(
+  saved: ContentFactoryCoverStyle,
+  draft: Partial<ContentFactoryCoverStyle> | undefined
+): boolean {
+  if (!draft) {
+    return false
+  }
+  if (draft.label !== undefined && draft.label !== saved.label) {
+    return true
+  }
+  if (draft.prompt_prefix !== undefined && draft.prompt_prefix !== saved.prompt_prefix) {
+    return true
+  }
+  if (draft.prompt_template !== undefined && draft.prompt_template !== saved.prompt_template) {
+    return true
+  }
+  if (draft.negative_prompt !== undefined && draft.negative_prompt !== saved.negative_prompt) {
+    return true
+  }
+  if (
+    draft.style_report !== undefined &&
+    (draft.style_report ?? "") !== (saved.style_report ?? "")
+  ) {
+    return true
+  }
+  if (draft.design_analysis !== undefined) {
+    const left = JSON.stringify(normalizeCoverStyleDesignAnalysis(draft.design_analysis))
+    const right = JSON.stringify(normalizeCoverStyleDesignAnalysis(saved.design_analysis))
+    if (left !== right) {
+      return true
+    }
+  }
+  if (
+    draft.color_tokens !== undefined &&
+    JSON.stringify(draft.color_tokens) !== JSON.stringify(saved.color_tokens)
+  ) {
+    return true
+  }
+  if (
+    draft.font_tokens !== undefined &&
+    JSON.stringify(draft.font_tokens) !== JSON.stringify(saved.font_tokens)
+  ) {
+    return true
+  }
+  return false
+}
+
+function revisionDraftFromRead(
+  rev: Awaited<ReturnType<typeof fetchContentFactoryCoverStyleRevision>>
+): Partial<ContentFactoryCoverStyle> {
+  return {
+    prompt_prefix: rev.prompt_prefix,
+    prompt_template: rev.prompt_template,
+    negative_prompt: rev.negative_prompt,
+    style_report: rev.style_report ?? undefined,
+    design_analysis: rev.design_analysis ?? undefined,
+    color_tokens: rev.color_tokens,
+    font_tokens: rev.font_tokens,
+  }
+}
+
+function draftFromSavedStyle(style: ContentFactoryCoverStyle): Partial<ContentFactoryCoverStyle> {
+  return {
+    label: style.label,
+    prompt_prefix: style.prompt_prefix,
+    prompt_template: style.prompt_template,
+    negative_prompt: style.negative_prompt,
+    style_report: style.style_report,
+    design_analysis: style.design_analysis,
+    color_tokens: style.color_tokens,
+    font_tokens: style.font_tokens,
+  }
+}
+
+function nearestRevisionAfterDelete(
+  revisions: CoverStyleRevisionSummary[],
+  deletedId: number
+): CoverStyleRevisionSummary | null {
+  return (
+    revisions
+      .filter((r) => r.id !== deletedId)
+      .sort((a, b) => b.revision_index - a.revision_index)[0] ?? null
+  )
 }
 
 function promptCapsulePillClass(index: number): string {
@@ -197,14 +291,18 @@ function PromptCapsuleField({
 function renderPromptField(
   field: PromptField,
   value: string,
-  onChange: (value: string) => void
+  onChange: (value: string) => void,
+  fieldKey?: string
 ) {
   const label = PROMPT_FIELD_LABELS[field]
+  const key = fieldKey ?? field
   if (CAPSULE_PROMPT_FIELDS.has(field)) {
-    return <PromptCapsuleField key={field} label={label} value={value} onChange={onChange} />
+    return (
+      <PromptCapsuleField key={key} label={label} value={value} onChange={onChange} />
+    )
   }
   return (
-    <div key={field}>
+    <div key={key}>
       <Label className="text-sm font-medium">{label}</Label>
       <Textarea
         className={STYLE_DETAIL_TEXTAREA_CLASS}
@@ -286,6 +384,19 @@ export function CoverStyleManageDialog({
   const [deleteStyleTarget, setDeleteStyleTarget] = useState<ContentFactoryCoverStyle | null>(
     null
   )
+  const [activeRevisionId, setActiveRevisionId] = useState<number | null>(null)
+  const [revisionPreviewUrl, setRevisionPreviewUrl] = useState<string | null>(null)
+  const [revisionDraftCache, setRevisionDraftCache] = useState<
+    Record<number, Partial<ContentFactoryCoverStyle>>
+  >({})
+  /** 风格库卡片示例图：跟随详情内选中的版本 */
+  const [styleExampleOverride, setStyleExampleOverride] = useState<Record<string, string>>(
+    {}
+  )
+  /** AI 调整后的最新编辑态；查看历史版本时不覆盖，用于「回到最新」 */
+  const liveLatestDraftRef = useRef<
+    Record<string, Partial<ContentFactoryCoverStyle>>
+  >({})
 
   const stylesQuery = useQuery({
     queryKey: ["cover-styles", "global", { includeHidden: showHiddenStyles }],
@@ -311,6 +422,33 @@ export function CoverStyleManageDialog({
   const detailHasExample = Boolean(detailStyle?.example_image_url)
   const detailShowImageToggle = detailHasReference && detailHasExample
 
+  const revisionsQuery = useQuery({
+    queryKey: ["cover-styles", detailStyleId, "revisions"],
+    queryFn: () => fetchContentFactoryCoverStyleRevisions(libraryId, detailStyleId!),
+    enabled: open && detailStyleId !== null && Number.isFinite(libraryId),
+  })
+  const styleRevisions = revisionsQuery.data?.items ?? []
+  const panelStyle = useMemo((): ContentFactoryCoverStyle | null => {
+    if (!detailStyle) {
+      return null
+    }
+    if (activeRevisionId !== null) {
+      const cached = revisionDraftCache[activeRevisionId]
+      if (cached) {
+        return { ...detailStyle, ...cached }
+      }
+      return detailStyle
+    }
+    const live = liveLatestDraftRef.current[detailStyle.id] ?? {}
+    const edits = editDrafts[detailStyle.id] ?? {}
+    return { ...detailStyle, ...live, ...edits }
+  }, [activeRevisionId, detailStyle, editDrafts, revisionDraftCache])
+  const detailExamplePreviewUrl =
+    revisionPreviewUrl ?? detailStyle?.example_image_url ?? null
+  const detailShowExamplePreview = Boolean(
+    detailExamplePreviewUrl && (detailImageView === "example" || !detailHasReference)
+  )
+
   useEffect(() => {
     if (!detailStyle) {
       return
@@ -321,6 +459,31 @@ export function CoverStyleManageDialog({
       setDetailImageView("example")
     }
   }, [detailStyleId, detailStyle?.example_image_url, detailStyle?.reference_image_url])
+
+  const prevDetailStyleIdRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    setActiveRevisionId(null)
+    setRevisionPreviewUrl(null)
+    setRevisionDraftCache({})
+    if (!detailStyle || detailStyle.id !== detailStyleId) {
+      return
+    }
+    if (prevDetailStyleIdRef.current !== detailStyleId) {
+      prevDetailStyleIdRef.current = detailStyleId
+      liveLatestDraftRef.current[detailStyle.id] = {
+        label: detailStyle.label,
+        prompt_prefix: detailStyle.prompt_prefix,
+        prompt_template: detailStyle.prompt_template,
+        negative_prompt: detailStyle.negative_prompt,
+        style_report: detailStyle.style_report,
+        design_analysis: detailStyle.design_analysis,
+        color_tokens: detailStyle.color_tokens,
+        font_tokens: detailStyle.font_tokens,
+      }
+    }
+  }, [detailStyleId, detailStyle])
+
   const coverStyleReady = isRecommendCoverStyleReady(aiConfigQuery.data)
   const coverStyleVisionReady = isRecommendCoverStyleVisionReady(aiConfigQuery.data)
   const coverStyleBinding = getRecommendCoverStyleBinding(aiConfigQuery.data)
@@ -336,6 +499,8 @@ export function CoverStyleManageDialog({
       setMainTab("list")
       setCreateTab("ai")
       setDetailStyleId(null)
+      setActiveRevisionId(null)
+      setRevisionPreviewUrl(null)
       setEditDrafts({})
       setShowHiddenStyles(false)
       setDeleteStyleOpen(false)
@@ -514,9 +679,43 @@ export function CoverStyleManageDialog({
     onError: (err: Error) => toast.error(err.message),
   })
 
+  const getStyleCardExampleUrl = useCallback(
+    (style: ContentFactoryCoverStyle): string | null => {
+      if (detailStyleId === style.id) {
+        return detailExamplePreviewUrl ?? style.example_image_url ?? null
+      }
+      const overridden = styleExampleOverride[style.id]
+      if (overridden) {
+        return overridden
+      }
+      return style.example_image_url ?? null
+    },
+    [detailExamplePreviewUrl, detailStyleId, styleExampleOverride]
+  )
+
+  const buildPreviewPromptOverride = useCallback(
+    (styleId: string) => {
+      if (detailStyleId !== styleId || !panelStyle) {
+        return {}
+      }
+      return {
+        prompt_prefix: panelStyle.prompt_prefix,
+        prompt_template: panelStyle.prompt_template,
+        negative_prompt: panelStyle.negative_prompt,
+        design_analysis: panelStyle.design_analysis ?? null,
+        color_tokens: panelStyle.color_tokens,
+        font_tokens: panelStyle.font_tokens,
+      }
+    },
+    [detailStyleId, panelStyle]
+  )
+
   const previewMutation = useMutation({
-    mutationFn: (styleId: string) =>
-      previewContentFactoryCoverStyle(libraryId, styleId, { force: true }),
+    mutationFn: ({ styleId }: { styleId: string }) =>
+      previewContentFactoryCoverStyle(libraryId, styleId, {
+        force: true,
+        ...buildPreviewPromptOverride(styleId),
+      }),
     onSuccess: (data) => {
       queryClient.setQueryData<{ items: ContentFactoryCoverStyle[] }>(
         ["cover-styles", "global"],
@@ -533,6 +732,13 @@ export function CoverStyleManageDialog({
           }
         }
       )
+      if (detailStyleId === data.style_id) {
+        setRevisionPreviewUrl(data.example_image_url)
+      }
+      setStyleExampleOverride((prev) => ({
+        ...prev,
+        [data.style_id]: data.example_image_url,
+      }))
       toast.success("示例图已更新")
       void queryClient.invalidateQueries({ queryKey: ["cover-styles"] })
     },
@@ -585,7 +791,7 @@ export function CoverStyleManageDialog({
   const detailPreviewing =
     detailStyle !== null &&
     previewMutation.isPending &&
-    previewMutation.variables === detailStyle.id
+    previewMutation.variables?.styleId === detailStyle.id
 
   const startForkStyle = (style: ContentFactoryCoverStyle) => {
     setForkSourceId(style.id)
@@ -601,7 +807,8 @@ export function CoverStyleManageDialog({
 
   const renderStyleListCard = (style: ContentFactoryCoverStyle) => {
     const previewingThisStyle =
-      previewMutation.isPending && previewMutation.variables === style.id
+      previewMutation.isPending && previewMutation.variables?.styleId === style.id
+    const cardExampleUrl = getStyleCardExampleUrl(style)
 
     return (
       <ContextMenu key={style.id}>
@@ -616,10 +823,10 @@ export function CoverStyleManageDialog({
               onDoubleClick={() => openStyleDetail(style.id)}
             >
               <div className="bg-muted/30 relative aspect-[3/4] max-h-52 w-full overflow-hidden">
-                {style.example_image_url ? (
+                {cardExampleUrl ? (
                   <img
-                    key={style.example_image_url}
-                    src={style.example_image_url}
+                    key={cardExampleUrl}
+                    src={cardExampleUrl}
                     alt={`${style.label} 示例图`}
                     title="双击查看详情"
                     className="size-full cursor-zoom-in object-contain object-center"
@@ -667,7 +874,7 @@ export function CoverStyleManageDialog({
           </ContextMenuItem>
           <ContextMenuItem
             disabled={!imageReady || previewMutation.isPending}
-            onSelect={() => previewMutation.mutate(style.id)}
+            onSelect={() => previewMutation.mutate({ styleId: style.id })}
           >
             {previewingThisStyle ? (
               <Loader2 className="mr-2 size-3.5 animate-spin" aria-hidden />
@@ -716,95 +923,339 @@ export function CoverStyleManageDialog({
     [styles]
   )
 
-  const getEditValue = (style: ContentFactoryCoverStyle, field: keyof ContentFactoryCoverStyle) => {
-    const draft = editDrafts[style.id]
-    if (draft && field in draft && draft[field as keyof typeof draft] !== undefined) {
-      return draft[field as keyof typeof draft] as string
-    }
-    return (style[field] as string | undefined) ?? ""
-  }
-
-  const getEditDesignAnalysis = (style: ContentFactoryCoverStyle) => {
-    const draft = editDrafts[style.id]
-    return normalizeCoverStyleDesignAnalysis(draft?.design_analysis ?? style.design_analysis)
-  }
-
-  const getStyleEditSnapshot = (style: ContentFactoryCoverStyle): ContentFactoryCoverStyle => {
-    const draft = editDrafts[style.id]
+  const getLiveLatestSnapshot = (style: ContentFactoryCoverStyle): ContentFactoryCoverStyle => {
+    const live = liveLatestDraftRef.current[style.id] ?? {}
     return {
       ...style,
-      label: draft?.label ?? style.label,
-      prompt_prefix: draft?.prompt_prefix ?? style.prompt_prefix,
-      prompt_template: draft?.prompt_template ?? style.prompt_template,
-      negative_prompt: draft?.negative_prompt ?? style.negative_prompt,
-      style_report: draft?.style_report ?? style.style_report,
-      color_tokens: draft?.color_tokens ?? style.color_tokens,
-      font_tokens: draft?.font_tokens ?? style.font_tokens,
-      design_analysis: getEditDesignAnalysis(style),
+      label: live.label ?? style.label,
+      prompt_prefix: live.prompt_prefix ?? style.prompt_prefix,
+      prompt_template: live.prompt_template ?? style.prompt_template,
+      negative_prompt: live.negative_prompt ?? style.negative_prompt,
+      style_report: live.style_report ?? style.style_report,
+      color_tokens: live.color_tokens ?? style.color_tokens,
+      font_tokens: live.font_tokens ?? style.font_tokens,
+      design_analysis: normalizeCoverStyleDesignAnalysis(
+        live.design_analysis ?? style.design_analysis
+      ),
     }
+  }
+
+  const getStyleEditSnapshot = (style: ContentFactoryCoverStyle): ContentFactoryCoverStyle =>
+    getLiveLatestSnapshot(style)
+
+  const patchPanelDraft = (
+    styleId: string,
+    patch: Partial<ContentFactoryCoverStyle>
+  ) => {
+    if (activeRevisionId !== null) {
+      setRevisionDraftCache((prev) => ({
+        ...prev,
+        [activeRevisionId]: { ...prev[activeRevisionId], ...patch },
+      }))
+      return
+    }
+    liveLatestDraftRef.current[styleId] = {
+      ...liveLatestDraftRef.current[styleId],
+      ...patch,
+    }
+    setEditDrafts((prev) => ({
+      ...prev,
+      [styleId]: { ...prev[styleId], ...patch },
+    }))
   }
 
   const setEditValue = (styleId: string, field: string, value: string) => {
-    setEditDrafts((prev) => ({
-      ...prev,
-      [styleId]: { ...prev[styleId], [field]: value },
-    }))
+    patchPanelDraft(styleId, { [field]: value })
   }
 
   const setEditDesignAnalysis = (styleId: string, value: CoverStyleDesignAnalysis) => {
-    setEditDrafts((prev) => ({
-      ...prev,
-      [styleId]: { ...prev[styleId], design_analysis: value },
-    }))
+    patchPanelDraft(styleId, { design_analysis: value })
   }
+
+  const createRevisionMutation = useMutation({
+    mutationFn: (opts: {
+      styleId: string
+      instruction: string
+      snapshot: ContentFactoryCoverStyle
+    }) =>
+      createContentFactoryCoverStyleRevision(libraryId, opts.styleId, {
+        instruction: opts.instruction,
+        design_analysis: opts.snapshot.design_analysis ?? null,
+        prompt_prefix: opts.snapshot.prompt_prefix,
+        prompt_template: opts.snapshot.prompt_template,
+        negative_prompt: opts.snapshot.negative_prompt,
+        color_tokens: opts.snapshot.color_tokens,
+        font_tokens: opts.snapshot.font_tokens,
+        style_report: opts.snapshot.style_report ?? null,
+      }),
+    onSuccess: (_rev, { styleId }) => {
+      void queryClient.invalidateQueries({
+        queryKey: ["cover-styles", styleId, "revisions"],
+      })
+    },
+    onError: (err: Error) => toast.error(err.message),
+  })
 
   const applyStyleRefine = (
     styleId: string,
-    result: Awaited<ReturnType<typeof refineContentFactoryCoverStyle>>
+    result: Awaited<ReturnType<typeof refineContentFactoryCoverStyle>>,
+    instruction: string,
+    beforeSnapshot: ContentFactoryCoverStyle
   ) => {
+    createRevisionMutation.mutate({
+      styleId,
+      instruction,
+      snapshot: beforeSnapshot,
+    })
+    const nextDraft: Partial<ContentFactoryCoverStyle> = {
+      prompt_prefix: result.prompt_prefix,
+      prompt_template: result.prompt_template,
+      negative_prompt: result.negative_prompt,
+      style_report: result.style_report,
+      design_analysis: result.design_analysis,
+      color_tokens: result.color_tokens,
+      font_tokens: result.font_tokens,
+    }
+    liveLatestDraftRef.current[styleId] = {
+      ...liveLatestDraftRef.current[styleId],
+      ...nextDraft,
+    }
     setEditDrafts((prev) => ({
       ...prev,
       [styleId]: {
         ...prev[styleId],
-        prompt_prefix: result.prompt_prefix,
-        prompt_template: result.prompt_template,
-        negative_prompt: result.negative_prompt,
-        style_report: result.style_report,
-        design_analysis: result.design_analysis,
-        color_tokens: result.color_tokens,
-        font_tokens: result.font_tokens,
+        ...nextDraft,
       },
     }))
+    setActiveRevisionId(null)
+    setRevisionPreviewUrl(null)
   }
+
+  const handleSelectLatest = useCallback(() => {
+    if (!detailStyle || activeRevisionId === null) {
+      return
+    }
+    const draft = liveLatestDraftRef.current[detailStyle.id]
+    if (!draft) {
+      return
+    }
+    setActiveRevisionId(null)
+    setRevisionPreviewUrl(null)
+    setDetailImageView("example")
+    setStyleExampleOverride((prev) => {
+      const next = { ...prev }
+      delete next[detailStyle.id]
+      return next
+    })
+    setEditDrafts((prev) => ({
+      ...prev,
+      [detailStyle.id]: {
+        ...prev[detailStyle.id],
+        ...draft,
+      },
+    }))
+  }, [activeRevisionId, detailStyle])
+
+  const handleSelectRevision = useCallback(
+    async (revisionId: number) => {
+      if (!detailStyle) {
+        return
+      }
+      try {
+        const rev = await fetchContentFactoryCoverStyleRevision(
+          libraryId,
+          detailStyle.id,
+          revisionId
+        )
+        const draft = revisionDraftFromRead(rev)
+        setRevisionDraftCache((prev) => ({ ...prev, [revisionId]: draft }))
+        setActiveRevisionId(revisionId)
+        setRevisionPreviewUrl(rev.example_image_url ?? null)
+        setDetailImageView("example")
+        const exampleUrl = rev.example_image_url ?? detailStyle.example_image_url
+        if (exampleUrl) {
+          setStyleExampleOverride((prev) => ({
+            ...prev,
+            [detailStyle.id]: exampleUrl,
+          }))
+        }
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "无法加载版本")
+      }
+    },
+    [detailStyle, libraryId]
+  )
+
+  const restoreLiveFromDraft = useCallback(
+    (
+      draft: Partial<ContentFactoryCoverStyle>,
+      exampleUrl: string | null | undefined
+    ) => {
+      if (!detailStyle) {
+        return
+      }
+      liveLatestDraftRef.current[detailStyle.id] = draft
+      setEditDrafts((prev) => ({
+        ...prev,
+        [detailStyle.id]: { ...draft },
+      }))
+      setActiveRevisionId(null)
+      setRevisionPreviewUrl(exampleUrl ?? null)
+      setDetailImageView("example")
+      if (exampleUrl) {
+        setStyleExampleOverride((prev) => ({
+          ...prev,
+          [detailStyle.id]: exampleUrl,
+        }))
+      } else {
+        setStyleExampleOverride((prev) => {
+          const next = { ...prev }
+          delete next[detailStyle.id]
+          return next
+        })
+      }
+    },
+    [detailStyle]
+  )
+
+  const handleDiscardLiveLatest = useCallback(async () => {
+    if (!detailStyle || activeRevisionId !== null) {
+      return
+    }
+    const newest = [...styleRevisions].sort(
+      (a, b) => b.revision_index - a.revision_index
+    )[0]
+    if (!newest) {
+      restoreLiveFromDraft(
+        draftFromSavedStyle(detailStyle),
+        detailStyle.example_image_url
+      )
+      toast.success("已回退到风格库已保存内容")
+      return
+    }
+    try {
+      const rev = await fetchContentFactoryCoverStyleRevision(
+        libraryId,
+        detailStyle.id,
+        newest.id
+      )
+      await deleteContentFactoryCoverStyleRevision(
+        libraryId,
+        detailStyle.id,
+        newest.id
+      )
+      setRevisionDraftCache((prev) => {
+        const next = { ...prev }
+        delete next[newest.id]
+        return next
+      })
+      restoreLiveFromDraft(
+        revisionDraftFromRead(rev),
+        rev.example_image_url ?? detailStyle.example_image_url
+      )
+      await queryClient.invalidateQueries({
+        queryKey: ["cover-styles", detailStyle.id, "revisions"],
+      })
+      toast.success("已撤销最后一次 AI 调整")
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "无法删除当前最新")
+    }
+  }, [
+    activeRevisionId,
+    detailStyle,
+    libraryId,
+    queryClient,
+    restoreLiveFromDraft,
+    styleRevisions,
+  ])
+
+  const handleDeleteRevision = useCallback(
+    async (revisionId: number) => {
+      if (!detailStyle) {
+        return
+      }
+      const wasViewingDeleted = activeRevisionId === revisionId
+
+      try {
+        await deleteContentFactoryCoverStyleRevision(
+          libraryId,
+          detailStyle.id,
+          revisionId
+        )
+        setRevisionDraftCache((prev) => {
+          const next = { ...prev }
+          delete next[revisionId]
+          return next
+        })
+
+        const nearest = nearestRevisionAfterDelete(styleRevisions, revisionId)
+
+        await queryClient.invalidateQueries({
+          queryKey: ["cover-styles", detailStyle.id, "revisions"],
+        })
+
+        if (wasViewingDeleted) {
+          if (nearest) {
+            await handleSelectRevision(nearest.id)
+          } else {
+            handleSelectLatest()
+          }
+        }
+
+        toast.success("已删除版本")
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : "无法删除版本")
+      }
+    },
+    [
+      activeRevisionId,
+      detailStyle,
+      handleSelectLatest,
+      handleSelectRevision,
+      libraryId,
+      queryClient,
+      styleRevisions,
+    ]
+  )
 
   const saveEdits = (style: ContentFactoryCoverStyle) => {
     saveEditsMutation.mutate(style)
   }
 
   const renderStyleDetailPanel = (style: ContentFactoryCoverStyle) => {
-    const hasEdits = Boolean(editDrafts[style.id])
+    const display = panelStyle ?? style
+    const draft = editDrafts[style.id]
+    const hasEdits =
+      activeRevisionId === null && coverStyleDraftDiffersFromSaved(style, draft)
+    const styleReport = display.style_report ?? ""
+    const panelRevisionKey = activeRevisionId ?? "live"
     const previewingThisStyle =
-      previewMutation.isPending && previewMutation.variables === style.id
+      previewMutation.isPending && previewMutation.variables?.styleId === style.id
 
     return (
       <>
         <div
+          key={`${style.id}-${panelRevisionKey}`}
           className={cn(
             "main-auto-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4",
             detailScroll.scrollbarVisible && "main-auto-scrollbar--visible"
           )}
           onScroll={detailScroll.onScroll}
         >
-          {style.style_report ? (
-            <p className="text-muted-foreground text-xs leading-relaxed">{style.style_report}</p>
+          {styleReport ? (
+            <p className="text-muted-foreground text-xs leading-relaxed">{styleReport}</p>
           ) : null}
           <CoverStyleDesignAnalysisEditor
-            analysis={getEditDesignAnalysis(style)}
+            key={`da-${panelRevisionKey}`}
+            analysis={normalizeCoverStyleDesignAnalysis(display.design_analysis)}
             onChange={(value) => setEditDesignAnalysis(style.id, value)}
           />
           {PROMPT_FIELD_ORDER.map((field) =>
-            renderPromptField(field, getEditValue(style, field), (value) =>
-              setEditValue(style.id, field, value)
+            renderPromptField(
+              field,
+              (display[field] as string | undefined) ?? "",
+              (value) => setEditValue(style.id, field, value),
+              `${field}-${panelRevisionKey}`
             )
           )}
         </div>
@@ -829,7 +1280,7 @@ export function CoverStyleManageDialog({
             size="sm"
             className="h-8 text-xs"
             disabled={!imageReady || previewMutation.isPending}
-            onClick={() => previewMutation.mutate(style.id)}
+            onClick={() => previewMutation.mutate({ styleId: style.id })}
           >
             {previewingThisStyle ? (
               <Loader2 className="mr-1 size-3 animate-spin" />
@@ -947,8 +1398,11 @@ export function CoverStyleManageDialog({
                 {!coverStyleReady ? (
                   <p className="text-muted-foreground shrink-0 text-xs">
                     请先在{" "}
-                    <Link to="/settings/ai" className="text-primary underline-offset-2 hover:underline">
-                      设置 → AI
+                    <Link
+                      to="/settings/ai"
+                      className="text-primary underline-offset-2 hover:underline"
+                    >
+                      AI 工作室
                     </Link>{" "}
                     配置「封面风格生成」场景。
                   </p>
@@ -1241,13 +1695,15 @@ export function CoverStyleManageDialog({
       onOpenChange={(next) => {
         if (!next) {
           setDetailStyleId(null)
+          setActiveRevisionId(null)
+          setRevisionPreviewUrl(null)
         }
       }}
     >
       <DialogContent className="flex max-h-[min(92vh,860px)] w-[min(96vw,72rem)] max-w-6xl flex-col gap-0 overflow-hidden p-0">
         {detailStyle ? (
           <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-            <div className="bg-muted/40 relative flex min-h-[240px] flex-1 flex-col p-4 md:min-h-0 md:basis-[58%]">
+            <div className="bg-muted/40 relative flex min-h-[240px] min-w-0 flex-1 flex-col overflow-hidden p-4 md:min-h-0 md:basis-[58%]">
               {detailShowImageToggle ? (
                 <div
                   className="border-border bg-background/80 mb-3 flex shrink-0 gap-1 self-start rounded-md border p-0.5"
@@ -1277,26 +1733,39 @@ export function CoverStyleManageDialog({
                     风格示例
                   </Button>
                 </div>
-              ) : detailHasReference || detailHasExample ? (
+              ) : detailHasReference || detailHasExample || revisionPreviewUrl ? (
                 <p className="text-muted-foreground mb-2 shrink-0 text-xs font-medium">
-                  {detailHasReference ? "灵感参考" : "风格示例"}
+                  {detailHasReference && detailImageView === "reference"
+                    ? "灵感参考"
+                    : "风格示例"}
                 </p>
               ) : null}
-              <div className="relative flex min-h-0 flex-1 flex-col items-center justify-center">
+              <div className="relative flex min-h-0 flex-1 flex-row items-stretch gap-2 overflow-hidden">
+                {styleRevisions.length > 0 ? (
+                  <CoverStyleRevisionRail
+                    items={styleRevisions}
+                    activeRevisionId={activeRevisionId}
+                    onSelect={(id) => void handleSelectRevision(id)}
+                    onSelectLatest={() => handleSelectLatest()}
+                    onDeleteRevision={(id) => void handleDeleteRevision(id)}
+                    onDiscardLiveLatest={() => void handleDiscardLiveLatest()}
+                  />
+                ) : null}
+                <div className="relative flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden">
                 {detailImageView === "reference" && detailHasReference ? (
                   <img
                     key={detailStyle.reference_image_url}
                     src={detailStyle.reference_image_url!}
                     alt={`${detailStyle.label} 灵感参考图`}
-                    className="max-h-full w-full object-contain object-center"
+                    className="max-h-full max-w-full object-contain object-center"
                   />
-                ) : detailHasExample ? (
+                ) : detailShowExamplePreview ? (
                   <img
-                    key={detailStyle.example_image_url}
-                    src={detailStyle.example_image_url!}
+                    key={detailExamplePreviewUrl}
+                    src={detailExamplePreviewUrl!}
                     alt={`${detailStyle.label} 示例图`}
                     className={cn(
-                      "max-h-full w-full object-contain object-center transition-opacity",
+                      "max-h-full max-w-full object-contain object-center transition-opacity",
                       detailPreviewing && "opacity-35"
                     )}
                   />
@@ -1313,6 +1782,7 @@ export function CoverStyleManageDialog({
                     <p className="text-muted-foreground text-xs">AI 配图生成中，请稍候</p>
                   </div>
                 ) : null}
+                </div>
               </div>
             </div>
             <div className="border-border flex min-h-0 w-full flex-col border-t md:w-[42%] md:max-w-xl md:border-t-0 md:border-l">
@@ -1327,8 +1797,15 @@ export function CoverStyleManageDialog({
                   <CoverStyleAiRefineButton
                     libraryId={libraryId}
                     enabled={coverStyleReady}
-                    snapshot={getStyleEditSnapshot(detailStyle)}
-                    onApply={(result) => applyStyleRefine(detailStyle.id, result)}
+                    snapshot={getLiveLatestSnapshot(detailStyle)}
+                    onApply={(result, instruction) =>
+                      applyStyleRefine(
+                        detailStyle.id,
+                        result,
+                        instruction,
+                        getStyleEditSnapshot(detailStyle)
+                      )
+                    }
                   />
                 </div>
               </div>

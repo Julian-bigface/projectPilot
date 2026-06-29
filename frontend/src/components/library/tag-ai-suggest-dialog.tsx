@@ -14,7 +14,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { fetchAiSettings } from "@/lib/settings-ai"
+import { isScenarioReady } from "@/lib/ai-config-status"
+import { fetchAiConfig } from "@/lib/settings-ai"
 import {
   defaultSelected,
   formatTagPreview,
@@ -64,11 +65,15 @@ export function TagAiSuggestDialog({
   } | null>(null)
   const suggestAbortRef = useRef<AbortController | null>(null)
 
-  const aiSettingsQuery = useQuery({
-    queryKey: ["settings", "ai"],
-    queryFn: fetchAiSettings,
+  const aiConfigQuery = useQuery({
+    queryKey: ["settings", "ai", "config"],
+    queryFn: fetchAiConfig,
     enabled: open,
   })
+
+  const hasApiKey = aiConfigQuery.data
+    ? isScenarioReady(aiConfigQuery.data, "tag_classification")
+    : false
 
   const groups = useMemo(() => groupProposals(rows, categories), [rows, categories])
   const groupKeyOrder = useMemo(() => groups.map((g) => g.key), [groups])
@@ -233,10 +238,10 @@ export function TagAiSuggestDialog({
   })
 
   const handleOpenSuggest = () => {
-    if (!aiSettingsQuery.data?.has_api_key) {
-      toast.error("请先在设置中配置 AI API Key", {
+    if (!hasApiKey) {
+      toast.error("请先在 AI 工作室配置 API Key", {
         action: {
-          label: "去设置",
+          label: "去配置",
           onClick: () => {
             window.location.href = "/settings/ai"
           },
@@ -320,7 +325,6 @@ export function TagAiSuggestDialog({
     return () => window.removeEventListener("keydown", onKeyDown)
   }, [deleteSelectedGroups, groups.length, open, selectedGroupKeys.size])
 
-  const hasApiKey = aiSettingsQuery.data?.has_api_key ?? false
   const showPreview = rows.length > 0 || skippedIds.length > 0 || isSuggesting
   const progressPercent =
     suggestProgress && suggestProgress.totalBatches > 0
@@ -351,11 +355,11 @@ export function TagAiSuggestDialog({
         </DialogHeader>
 
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 py-4">
-          {!hasApiKey && !aiSettingsQuery.isLoading ? (
+          {!hasApiKey && !aiConfigQuery.isLoading ? (
             <p className="text-muted-foreground text-sm">
               尚未配置 AI API Key。请前往{" "}
               <Link to="/settings/ai" className="text-primary underline-offset-4 hover:underline">
-                设置 → AI
+                AI 工作室
               </Link>{" "}
               保存 Key 后再试。
             </p>
@@ -374,7 +378,7 @@ export function TagAiSuggestDialog({
               type="button"
               variant="secondary"
               size="sm"
-              disabled={!hasApiKey || isSuggesting || aiSettingsQuery.isLoading}
+              disabled={!hasApiKey || isSuggesting || aiConfigQuery.isLoading}
               onClick={handleOpenSuggest}
             >
               {isSuggesting ? (

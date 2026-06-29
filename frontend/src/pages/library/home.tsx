@@ -160,6 +160,7 @@ export function LibraryHomePage() {
           selectedTagIds: browseFilters.selectedTagIds,
           tagMatchMode: browseFilters.tagMatchMode,
           selectedFolderIds: browseFilters.selectedFolderIds,
+          addedTimePreset: browseFilters.addedTimePreset,
         },
         folderTagIdsByFolderId
       ),
@@ -169,6 +170,7 @@ export function LibraryHomePage() {
       browseFilters.selectedTagIds,
       browseFilters.tagMatchMode,
       browseFilters.selectedFolderIds,
+      browseFilters.addedTimePreset,
       folderTagIdsByFolderId,
     ]
   )

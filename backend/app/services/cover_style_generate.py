@@ -26,6 +26,8 @@ from app.services.readme_cover_storage import (
 )
 from app.services.settings_ai import resolve_ai_runtime_config, resolve_ai_scenario_preset_id
 
+_GENERATE_STYLE_MAX_TOKENS = 8192
+
 _PROMPT_PATH = (
     Path(__file__).resolve().parent.parent / "prompts" / "content_factory" / "cover" / "generate_style.txt"
 )
@@ -163,7 +165,7 @@ async def generate_cover_style_payload(
             system="你是视觉设计系统分析师，只输出 JSON object。prompt_template 正文须用中文。",
             user=user_prompt,
             temperature=0.4,
-            max_tokens=4096,
+            max_tokens=_GENERATE_STYLE_MAX_TOKENS,
             json_mode=True,
             user_images=user_images,
         )
@@ -203,7 +205,7 @@ async def iter_cover_style_generate_stream(
             system="你是视觉设计系统分析师，只输出 JSON object。prompt_template 正文须用中文。",
             user=user_prompt,
             temperature=0.4,
-            max_tokens=4096,
+            max_tokens=_GENERATE_STYLE_MAX_TOKENS,
             json_mode=True,
             user_images=user_images,
         ):

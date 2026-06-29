@@ -346,15 +346,15 @@ ProjectPilot/
 - [x] `DATABASE_URL` 指向 AppData；开发环境仍可用仓库内 `.db`。
 - [x] 生产 `/api` **方案 A** 落地；`npm run dev` 不受影响。
 - [x] CORS / 固定端口 `38472`（占用时 health 超时并提示）。
-- [ ] 手工验证：安装目录运行、关窗无残留进程、数据写入 AppData（本机已生成 NSIS 安装包，请双击安装后确认）。
+- [x] 手工验证：安装目录运行、关窗无残留进程、数据写入 AppData（v0.2.0 NSIS 已构建；release exe + 静默安装 AppData 库 + health 0.2.0 已自动化验证，见 [`CHANGELOG_2026-06-27.md`](../changelogs/CHANGELOG_2026-06-27.md)）。
 
-### Phase 1 — 产品化基础
+### Phase 1 — 产品化基础（部分完成）
 
-- [ ] `npm run tauri build` 产出可安装包。
-- [ ] 日志写入 AppData（backend + tauri）。
-- [ ] `schema_version` 或 Alembic 规划；发版 migration 检查清单。
-- [ ] 设置页/关于页显示版本号；敏感配置继续走 DB + 设置 API。
-- [ ] 文档：README 增加「桌面构建」小节；changelog 记录发版。
+- [x] `npm run tauri build` 产出可安装包（见 [`CHANGELOG_2026-06-01.md`](../changelogs/CHANGELOG_2026-06-01.md) v0.1.2、`桌面安装包打包经验.md`）
+- [ ] 日志写入 AppData（backend + tauri）— 部分已有 `desktop.log`
+- [ ] `schema_version` 或 Alembic 规划；发版 migration 检查清单
+- [x] 账户菜单 footer 显示版本号（`formatAppVersionLabel`）；设置页完整「关于」仍可选
+- [x] 文档：README **桌面构建**小节；changelog 记录发版
 
 ### Phase 2 — 分发与更新
 

@@ -15,6 +15,8 @@ import {
 } from "@/components/content-factory/readme-cover-capture-host"
 import { ReadmeCoverCaptureErrorBoundary } from "@/components/content-factory/readme-cover-capture-error-boundary"
 import { CoverStyleManageDialog } from "@/components/content-factory/cover-style-manage-dialog"
+import { PromotionExportFallback } from "@/components/content-factory/promotion-export-fallback"
+import { PromotionExportPanel } from "@/components/content-factory/promotion-export-panel"
 import { PromotionImagePanel } from "@/components/content-factory/promotion-image-panel"
 import { PromotionProjectHeader } from "@/components/content-factory/promotion-project-header"
 import { PromotionStepper } from "@/components/content-factory/promotion-stepper"
@@ -172,6 +174,7 @@ export function ProjectPromotionPage() {
   } | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [styleManageOpen, setStyleManageOpen] = useState(false)
+  const [animatingStepId, setAnimatingStepId] = useState<number | null>(null)
   const [analysisSteps, setAnalysisSteps] = useState<AnalysisStepState[]>([])
   const saveBodyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const saveTitleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -681,11 +684,130 @@ export function ProjectPromotionPage() {
         body: snapshot.body,
         body_json: nextJson,
         ...(isPlatformView(view) ? { platform: view } : {}),
-        step: 3,
+        step: (draft?.step ?? 1) >= 4 ? 4 : 3,
       })
       return nextJson
     },
-    [copyJson, draftId, patchMutation, resolveDraftSnapshot]
+    [copyJson, draft?.step, draftId, patchMutation, resolveDraftSnapshot]
+  )
+
+  const flushPendingSaves = useCallback(() => {
+    if (saveBodyTimerRef.current) {
+      clearTimeout(saveBodyTimerRef.current)
+      saveBodyTimerRef.current = null
+    }
+    if (saveTitleTimerRef.current) {
+      clearTimeout(saveTitleTimerRef.current)
+      saveTitleTimerRef.current = null
+    }
+    if (!draftId) {
+      return
+    }
+    persistViewContent(contentView, currentViewContent())
+  }, [contentView, currentViewContent, draftId, persistViewContent])
+
+  const enterExportStep = useCallback(() => {
+    if (!draft || !draftHasWorkbenchContent(draft, copyJson)) {
+      toast.error("请先生成或填写正文")
+      return
+    }
+    flushPendingSaves()
+    setContentView(draft.platform)
+    patchMutation.mutate({ step: 4, platform: draft.platform })
+  }, [copyJson, draft, flushPendingSaves, patchMutation])
+
+  const clearPublishedState = useCallback((): ContentFactoryCopyJson => {
+    const nextJson: ContentFactoryCopyJson = { ...(copyJson ?? {}) }
+    delete nextJson.published_at
+    return nextJson
+  }, [copyJson])
+
+  const leaveExportStep = useCallback(() => {
+    flushPendingSaves()
+    const wasPublished =
+      draft?.status === "published" || Boolean(copyJson?.published_at)
+    if (wasPublished) {
+      const nextJson = clearPublishedState()
+      setCopyJson(nextJson)
+      patchMutation.mutate({
+        step: 3,
+        status: "generated",
+        body_json: nextJson,
+      })
+      return
+    }
+    patchMutation.mutate({ step: 3 })
+  }, [clearPublishedState, copyJson?.published_at, draft?.status, flushPendingSaves, patchMutation])
+
+  const cancelPublish = useCallback(() => {
+    if (!draftId) {
+      return
+    }
+    const wasPublished =
+      draft?.status === "published" || Boolean(copyJson?.published_at)
+    if (!wasPublished) {
+      return
+    }
+    flushPendingSaves()
+    setAnimatingStepId(4)
+    const nextJson = clearPublishedState()
+    setCopyJson(nextJson)
+    patchMutation.mutate(
+      { body_json: nextJson, status: "generated" },
+      {
+        onSuccess: () => {
+          toast.success("已取消发布标记")
+          window.setTimeout(() => setAnimatingStepId(null), 600)
+        },
+        onError: () => setAnimatingStepId(null),
+      }
+    )
+  }, [clearPublishedState, copyJson?.published_at, draft?.status, draftId, flushPendingSaves, patchMutation])
+
+  const confirmPublish = useCallback(() => {
+    if (!draftId) {
+      return
+    }
+    const alreadyPublished =
+      draft?.status === "published" || Boolean(copyJson?.published_at)
+    if (alreadyPublished) {
+      cancelPublish()
+      return
+    }
+    flushPendingSaves()
+    setAnimatingStepId(4)
+    const publishedAt = new Date().toISOString()
+    const nextJson: ContentFactoryCopyJson = { ...(copyJson ?? {}), published_at: publishedAt }
+    setCopyJson(nextJson)
+    patchMutation.mutate(
+      { body_json: nextJson, status: "published" },
+      {
+        onSuccess: () => {
+          toast.success("已标记为发布完成")
+          window.setTimeout(() => setAnimatingStepId(null), 600)
+        },
+        onError: () => setAnimatingStepId(null),
+      }
+    )
+  }, [cancelPublish, copyJson, draft?.status, draftId, flushPendingSaves, patchMutation])
+
+  const handleStepperClick = useCallback(
+    (stepId: number) => {
+      if (stepId === 3) {
+        if ((draft?.step ?? 0) >= 4) {
+          leaveExportStep()
+        } else {
+          enterExportStep()
+        }
+      } else if (stepId === 4) {
+        if ((draft?.step ?? 0) >= 4) {
+          confirmPublish()
+        } else {
+          enterExportStep()
+        }
+      }
+    },
+    [confirmPublish, draft?.step, enterExportStep, leaveExportStep]
   )
 
   const scheduleSaveBody = useCallback(
@@ -853,7 +975,7 @@ export function ProjectPromotionPage() {
         return
       }
       if (!recommendImageReady) {
-        toast.error("请先在设置 → AI 配置推荐配图 API Key", {
+        toast.error("请先在 AI 工作室配置推荐配图 API Key", {
           action: {
             label: "去配置",
             onClick: () => {
@@ -872,6 +994,7 @@ export function ProjectPromotionPage() {
     },
     [
       aiCoverMutation,
+      aiConfigQuery.data,
       coverSizePresetId,
       draftId,
       imageTemplate,
@@ -1011,14 +1134,77 @@ export function ProjectPromotionPage() {
   }
 
   const hasWorkbench = draftHasWorkbenchContent(draft, copyJson)
+  const canEnterExport = hasWorkbench
+  const isPublished = draft.status === "published" || Boolean(copyJson?.published_at)
   const currentStep = draft.step >= 4 ? 4 : hasWorkbench ? Math.max(draft.step, 3) : draft.step
   const showInitialGenerate = currentStep <= 2 && !hasWorkbench
+  const showExportPanel = draft.step >= 4
+
+  const isStepClickable = (stepId: number) => {
+    if (stepId === 3) {
+      if (showExportPanel && hasWorkbench) {
+        return true
+      }
+      return canEnterExport && !showExportPanel
+    }
+    if (stepId === 4) {
+      return canEnterExport
+    }
+    return false
+  }
+
+  const stepCompleted = (stepId: number) => {
+    if (stepId === 4) {
+      return isPublished
+    }
+    if (stepId === 3) {
+      return currentStep > 3
+    }
+    return currentStep > stepId
+  }
+
+  const handleSwitchToXiaohongshu = () => {
+    if (contentView === "xiaohongshu") {
+      leaveExportStep()
+      return
+    }
+    const nextJson = writeViewContent(copyJson, contentView, currentViewContent())
+    const nextContent = readViewContent(nextJson, "xiaohongshu")
+    setCopyJson(nextJson)
+    setContentView("xiaohongshu")
+    setTitle(nextContent.title)
+    setBody(nextContent.body)
+    const snapshot = resolveDraftSnapshot(nextContent, nextJson)
+    const needsLayout = platformVariantNeedsLayout(nextJson, "xiaohongshu")
+    patchMutation.mutate(
+      {
+        body_json: nextJson,
+        title: snapshot.title,
+        body: snapshot.body,
+        platform: "xiaohongshu",
+        step: 3,
+      },
+      {
+        onSuccess: () => {
+          if (needsLayout) {
+            generateMutation.mutate({ platform: "xiaohongshu", from_source: true })
+          }
+        },
+      }
+    )
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-4">
       <PromotionProjectHeader project={draft.project} />
 
-      <PromotionStepper currentStep={currentStep} />
+      <PromotionStepper
+        currentStep={currentStep}
+        onStepClick={handleStepperClick}
+        isStepClickable={isStepClickable}
+        stepCompleted={stepCompleted}
+        animatingStepId={animatingStepId}
+      />
 
       {showInitialGenerate ? (
         <PromotionAnalysisStart
@@ -1026,78 +1212,99 @@ export function ProjectPromotionPage() {
           steps={analysisSteps}
           onStart={() => startAnalysisMutation.mutate()}
         />
+      ) : showExportPanel ? (
+        draft.platform === "xiaohongshu" ? (
+          <PromotionExportPanel
+            title={title}
+            body={body}
+            titleOptions={activeTitleOptions}
+            coverUrl={coverPreviewUrl}
+            suggestingTitles={suggestTitlesMutation.isPending}
+            onTitleChange={scheduleSaveTitle}
+            onBodyChange={scheduleSaveBody}
+            onSuggestTitles={() => suggestTitlesMutation.mutate()}
+            onDownloadCover={handleDownloadCover}
+          />
+        ) : (
+          <PromotionExportFallback
+            draft={{ ...draft, title: title || null, body }}
+            coverUrl={coverPreviewUrl}
+            onDownloadCover={handleDownloadCover}
+            onSwitchToXiaohongshu={handleSwitchToXiaohongshu}
+          />
+        )
       ) : (
         <div className="grid min-h-[480px] gap-4 lg:grid-cols-2">
-          <div className="flex min-h-0 flex-col gap-3">
-            <PromotionCopyPanel
-              ref={copyPanelRef}
-              contentView={contentView}
-              title={title}
-              titleOptions={activeTitleOptions}
-              body={body}
-              regenerating={generateMutation.isPending}
-              optimizing={optimizeSelectionMutation.isPending}
-              optimizingRange={optimizingRange}
-              suggestingTitles={suggestTitlesMutation.isPending}
-              onViewChange={handleViewChange}
-              onTitleChange={scheduleSaveTitle}
-              onSuggestTitles={() => suggestTitlesMutation.mutate()}
-              onBodyChange={scheduleSaveBody}
-              onRegenerate={() => {
-                if (!isPlatformView(contentView)) {
-                  toast.error("请切换到平台排版后再重新生成")
+            <div className="flex min-h-0 flex-col gap-3">
+              <PromotionCopyPanel
+                ref={copyPanelRef}
+                contentView={contentView}
+                title={title}
+                titleOptions={activeTitleOptions}
+                body={body}
+                regenerating={generateMutation.isPending}
+                optimizing={optimizeSelectionMutation.isPending}
+                optimizingRange={optimizingRange}
+                suggestingTitles={suggestTitlesMutation.isPending}
+                onViewChange={handleViewChange}
+                onTitleChange={scheduleSaveTitle}
+                onSuggestTitles={() => suggestTitlesMutation.mutate()}
+                onBodyChange={scheduleSaveBody}
+                onRegenerate={() => {
+                  if (!isPlatformView(contentView)) {
+                    toast.error("请切换到平台排版后再重新生成")
+                    return
+                  }
+                  generateMutation.mutate({
+                    regenerate: true,
+                    platform: contentView,
+                    from_source: Boolean(copyJson?.source_body?.trim()),
+                  })
+                }}
+                onOptimizeSelection={(selection) =>
+                  optimizeSelectionMutation.mutate({ ...selection, fullBody: body })
+                }
+                exportDraft={{ ...draft, title: title || null, body }}
+              />
+              {isPlatformView(contentView) ? (
+                <PromotionHighlightTags tags={activeHighlightTags} onTagClick={handleTagClick} />
+              ) : null}
+            </div>
+            <PromotionImagePanel
+              project={draft.project}
+              copy={copyJson}
+              selectedTemplate={imageTemplate}
+              styleOptions={styleOptions}
+              coverUrl={coverPreviewUrl}
+              onCoverImageLoad={handleCoverImageLoaded}
+              recommendImageReady={recommendImageReady}
+              coverGenerating={
+                coverMutation.isPending &&
+                coverMutation.variables?.draftId === draftId
+              }
+              aiCoverGenerating={
+                aiCoverMutation.isPending &&
+                aiCoverMutation.variables?.draftId === draftId
+              }
+              coverProgressSetterRef={coverProgressSetterRef}
+              coverSizePresetId={coverSizePresetId}
+              onCoverSizePresetChange={handleCoverSizePresetChange}
+              onTemplateChange={handleTemplateChange}
+              onRegenerateCover={() => {
+                if (imageTemplate === "native-readme") {
+                  coverMutation.mutate({
+                    force: true,
+                    freshReadme: true,
+                    draftId,
+                    coverSizePresetId,
+                  })
                   return
                 }
-                generateMutation.mutate({
-                  regenerate: true,
-                  platform: contentView,
-                  from_source: Boolean(copyJson?.source_body?.trim()),
-                })
+                runAiCoverGeneration(true)
               }}
-              onOptimizeSelection={(selection) =>
-                optimizeSelectionMutation.mutate({ ...selection, fullBody: body })
-              }
-              exportDraft={{ ...draft, title: title || null, body }}
-            />
-            {isPlatformView(contentView) ? (
-              <PromotionHighlightTags tags={activeHighlightTags} onTagClick={handleTagClick} />
-            ) : null}
-          </div>
-          <PromotionImagePanel
-            project={draft.project}
-            copy={copyJson}
-            selectedTemplate={imageTemplate}
-            styleOptions={styleOptions}
-            coverUrl={coverPreviewUrl}
-            onCoverImageLoad={handleCoverImageLoaded}
-            recommendImageReady={recommendImageReady}
-            coverGenerating={
-              coverMutation.isPending &&
-              coverMutation.variables?.draftId === draftId
-            }
-            aiCoverGenerating={
-              aiCoverMutation.isPending &&
-              aiCoverMutation.variables?.draftId === draftId
-            }
-            coverProgressSetterRef={coverProgressSetterRef}
-            coverSizePresetId={coverSizePresetId}
-            onCoverSizePresetChange={handleCoverSizePresetChange}
-            onTemplateChange={handleTemplateChange}
-            onRegenerateCover={() => {
-              if (imageTemplate === "native-readme") {
-                coverMutation.mutate({
-                  force: true,
-                  freshReadme: true,
-                  draftId,
-                  coverSizePresetId,
-                })
-                return
-              }
-              runAiCoverGeneration(true)
-            }}
-            onGenerateAiCover={() => runAiCoverGeneration(false)}
-            onDownloadCover={handleDownloadCover}
-            onRevealCoverInFolder={handleRevealCoverInFolder}
+              onGenerateAiCover={() => runAiCoverGeneration(false)}
+              onDownloadCover={handleDownloadCover}
+              onRevealCoverInFolder={handleRevealCoverInFolder}
             onOpenStyleManage={() => setStyleManageOpen(true)}
           />
         </div>

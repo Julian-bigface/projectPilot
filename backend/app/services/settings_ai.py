@@ -41,6 +41,8 @@ AI_SCENARIOS_KEY = "ai_scenarios_json"
 
 DEFAULT_PROVIDER_ID = "default"
 
+IMAGE_ONLY_PRESET_IDS = frozenset({"rootflowai-image"})
+
 
 async def _get_setting(db: AsyncSession, key: str) -> str | None:
     row = await db.get(AppSetting, key)
@@ -178,6 +180,7 @@ def _provider_to_read(
         models=models,
         default_model=default_model,
         has_api_key=eff is not None,
+        api_key=db_key if db_key else None,
         api_key_preview=token_preview_last_n(db_key) if db_key else None,
         api_key_length=len(db_key) if db_key else None,
         is_default=is_default,
@@ -481,6 +484,24 @@ async def resolve_ai_runtime_config(
         return DEFAULT_PROVIDER, DEFAULT_BASE_URL, DEFAULT_MODEL, ""
 
     return _runtime_from_provider_record(record, model_override=model_override)
+
+
+async def resolve_provider_preset_id(
+    db: AsyncSession,
+    *,
+    provider_id: str,
+) -> str:
+    """返回指定供应商的 preset_id。"""
+    await ensure_ai_config_migrated(db)
+    records = await _load_provider_records(db)
+    record = _find_provider(records, provider_id)
+    if record is None:
+        return DEFAULT_PRESET_ID
+    return normalize_preset_id(str(record.get("preset_id") or ""))
+
+
+def is_image_only_preset(preset_id: str) -> bool:
+    return normalize_preset_id(preset_id) in IMAGE_ONLY_PRESET_IDS
 
 
 async def resolve_ai_scenario_preset_id(

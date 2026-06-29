@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Project Pilot API",
-    "version": "0.1.2"
+    "version": "0.2.0"
   },
   "paths": {
     "/api/projects": {
@@ -3216,6 +3216,290 @@
         }
       }
     },
+    "/api/project-libraries/{library_id}/content-factory/cover-styles/{style_id}/revisions": {
+      "get": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Get Cover Style Revisions",
+        "operationId": "get_cover_style_revisions_api_project_libraries__library_id__content_factory_cover_styles__style_id__revisions_get",
+        "parameters": [
+          {
+            "name": "style_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Style Id"
+            }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoverStyleRevisionListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Post Cover Style Revision",
+        "operationId": "post_cover_style_revision_api_project_libraries__library_id__content_factory_cover_styles__style_id__revisions_post",
+        "parameters": [
+          {
+            "name": "style_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Style Id"
+            }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CoverStyleRevisionCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoverStyleRevisionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}/content-factory/cover-styles/{style_id}/revisions/{revision_id}": {
+      "get": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Get Cover Style Revision",
+        "operationId": "get_cover_style_revision_api_project_libraries__library_id__content_factory_cover_styles__style_id__revisions__revision_id__get",
+        "parameters": [
+          {
+            "name": "style_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Style Id"
+            }
+          },
+          {
+            "name": "revision_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Revision Id"
+            }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoverStyleRevisionRead"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Delete Cover Style Revision",
+        "operationId": "delete_cover_style_revision_api_project_libraries__library_id__content_factory_cover_styles__style_id__revisions__revision_id__delete",
+        "parameters": [
+          {
+            "name": "style_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Style Id"
+            }
+          },
+          {
+            "name": "revision_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Revision Id"
+            }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/project-libraries/{library_id}/content-factory/cover-styles/{style_id}/revisions/{revision_id}/example": {
+      "get": {
+        "tags": [
+          "project-libraries",
+          "content-factory"
+        ],
+        "summary": "Get Cover Style Revision Example",
+        "operationId": "get_cover_style_revision_example_api_project_libraries__library_id__content_factory_cover_styles__style_id__revisions__revision_id__example_get",
+        "parameters": [
+          {
+            "name": "style_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Style Id"
+            }
+          },
+          {
+            "name": "revision_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Revision Id"
+            }
+          },
+          {
+            "name": "library_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Library Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/project-libraries/{library_id}/content-factory/cover-styles/save-parsed": {
       "post": {
         "tags": [
@@ -4858,6 +5142,18 @@
             "title": "Has Api Key",
             "default": false
           },
+          "api_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key",
+            "description": "已保存的 API Key 全文（本地应用设置页回显；未配置时为 null）"
+          },
           "api_key_preview": {
             "anyOf": [
               {
@@ -5813,7 +6109,8 @@
             "type": "string",
             "enum": [
               "draft",
-              "generated"
+              "generated",
+              "published"
             ],
             "title": "Status"
           },
@@ -5958,7 +6255,8 @@
                 "type": "string",
                 "enum": [
                   "draft",
-                  "generated"
+                  "generated",
+                  "published"
                 ]
               },
               {
@@ -6341,6 +6639,69 @@
             "type": "boolean",
             "title": "Force",
             "default": false
+          },
+          "prompt_prefix": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Prefix"
+          },
+          "prompt_template": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prompt Template"
+          },
+          "negative_prompt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Negative Prompt"
+          },
+          "design_analysis": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CoverStyleDesignAnalysis"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "color_tokens": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ColorTokensRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "font_tokens": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FontTokensRead"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -6658,6 +7019,220 @@
           "prompt_template"
         ],
         "title": "CoverStyleRefineResponse"
+      },
+      "CoverStyleRevisionCreateRequest": {
+        "properties": {
+          "instruction": {
+            "type": "string",
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Instruction"
+          },
+          "design_analysis": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CoverStyleDesignAnalysis"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "prompt_prefix": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Prompt Prefix"
+          },
+          "prompt_template": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Prompt Template"
+          },
+          "negative_prompt": {
+            "type": "string",
+            "title": "Negative Prompt",
+            "default": ""
+          },
+          "color_tokens": {
+            "$ref": "#/components/schemas/ColorTokensRead"
+          },
+          "font_tokens": {
+            "$ref": "#/components/schemas/FontTokensRead"
+          },
+          "style_report": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Style Report"
+          }
+        },
+        "type": "object",
+        "required": [
+          "instruction",
+          "prompt_prefix",
+          "prompt_template"
+        ],
+        "title": "CoverStyleRevisionCreateRequest"
+      },
+      "CoverStyleRevisionListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CoverStyleRevisionSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "title": "CoverStyleRevisionListResponse"
+      },
+      "CoverStyleRevisionRead": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "revision_index": {
+            "type": "integer",
+            "title": "Revision Index"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "instruction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instruction"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "design_analysis": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CoverStyleDesignAnalysis"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "prompt_prefix": {
+            "type": "string",
+            "title": "Prompt Prefix"
+          },
+          "prompt_template": {
+            "type": "string",
+            "title": "Prompt Template"
+          },
+          "negative_prompt": {
+            "type": "string",
+            "title": "Negative Prompt",
+            "default": ""
+          },
+          "color_tokens": {
+            "$ref": "#/components/schemas/ColorTokensRead"
+          },
+          "font_tokens": {
+            "$ref": "#/components/schemas/FontTokensRead"
+          },
+          "style_report": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Style Report"
+          },
+          "example_image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Example Image Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "revision_index",
+          "source",
+          "created_at",
+          "prompt_prefix",
+          "prompt_template"
+        ],
+        "title": "CoverStyleRevisionRead"
+      },
+      "CoverStyleRevisionSummary": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "revision_index": {
+            "type": "integer",
+            "title": "Revision Index"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "instruction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Instruction"
+          },
+          "created_at": {
+            "type": "string",
+            "title": "Created At"
+          },
+          "example_image_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Example Image Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "revision_index",
+          "source",
+          "created_at"
+        ],
+        "title": "CoverStyleRevisionSummary"
       },
       "CoverStyleSaveParsedRequest": {
         "properties": {

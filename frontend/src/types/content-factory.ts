@@ -76,6 +76,25 @@ export interface ContentFactoryCoverStyle {
   created_at?: string | null
 }
 
+export interface CoverStyleRevisionSummary {
+  id: number
+  revision_index: number
+  source: string
+  instruction?: string | null
+  created_at: string
+  example_image_url?: string | null
+}
+
+export interface CoverStyleRevisionRead extends CoverStyleRevisionSummary {
+  design_analysis?: CoverStyleDesignAnalysis | null
+  prompt_prefix: string
+  prompt_template: string
+  negative_prompt: string
+  color_tokens: ContentFactoryCoverStyle["color_tokens"]
+  font_tokens: ContentFactoryCoverStyle["font_tokens"]
+  style_report?: string | null
+}
+
 export interface CoverStyleOption {
   id: string
   label: string
@@ -147,6 +166,8 @@ export interface ContentFactoryCopyJson {
   cover_prompt_hash?: string | null
   /** 风格 + 画幅 → 封面记录（切换模板时各自保留） */
   cover_variants?: Record<string, CoverVariantRecord> | null
+  /** 用户确认导出发布的时间（ISO） */
+  published_at?: string | null
 }
 
 export interface UploadCoverResponse {
@@ -162,7 +183,7 @@ export interface ContentFactoryDraft {
   kind: string
   platform: RecommendPlatform
   step: number
-  status: "draft" | "generated"
+  status: "draft" | "generated" | "published"
   title: string | null
   body: string | null
   body_json: ContentFactoryCopyJson | null

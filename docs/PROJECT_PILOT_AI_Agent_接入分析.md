@@ -1,7 +1,7 @@
 # Project Pilot — AI 与 Agent 接入分析
 
-> 文档版本：**v2.0**（产品方向修订）  
-> 更新日期：2026-06-02  
+> 文档版本：**v2.1**（状态同步）  
+> 更新日期：**2026-06-27**  
 > 关联文档：[PROJECT_PILOT_v0.1_设计文档.md](./PROJECT_PILOT_v0.1_设计文档.md)、[PROJECT_PILOT_Implementation_Plan.md](./PROJECT_PILOT_Implementation_Plan.md)、[GithubStarsManager_竞品分析报告.md](./GithubStarsManager_竞品分析报告.md)、[RedBox_分析报告.md](./RedBox_分析报告.md)、[AGENTS.md](../AGENTS.md)
 
 ---
@@ -211,9 +211,9 @@ AI 任务输出应直接映射为 `{ tag_id, category_id }` 或 `{ tag_id, new_c
 
 | 步骤 | 内容 | 说明 |
 |------|------|------|
-| **Step 1** | `llm/provider` + `/settings/ai` + suggest（仅归入**已有**分类） | 1～2 天可交付 MVP |
-| **Step 2** | 分批 + 重试；支持建议**新建分类**；低 confidence 标黄 | 提升 300 标签准确率 |
-| **Step 3** | 附带关联项目 description；导出 / 撤销 | 体验与安全感 |
+| **Step 1** | `llm/provider` + `/settings/ai` + suggest（仅归入**已有**分类） | ✅ 2026-06-02 |
+| **Step 2** | 分批 + 重试；支持建议**新建分类**；低 confidence 标黄 | ✅ 2026-06-02（含流式 `/suggest-categories/stream`） |
+| **Step 3** | 附带关联项目 description；导出 / 撤销 | ⏳ 可选，未做 |
 
 **Step 1 不要做的：**
 
@@ -370,21 +370,26 @@ flowchart LR
 
 ## 9. 接入检查清单
 
-### 9.1 标签 AI 分类（P0）
+### 9.1 标签 AI 分类（P0）✅
 
-1. [ ] `backend/app/services/llm/` + `settings_ai.py` + `tag_category_suggest.py`  
-2. [ ] `GET/PUT/POST /api/settings/ai`  
-3. [ ] `POST .../tags/suggest-categories`、`POST .../tags/apply-category-suggestions`  
-4. [ ] `python scripts/export_openapi.py` → 提交 `contracts/openapi.json`  
-5. [ ] 标签管理页：预览 + 确认 UI  
-6. [ ] 测试：无 Key 降级、分批、非法 category_id、apply 幂等  
-7. [ ] [`changelogs/CHANGELOG_YYYY-MM-DD.md`](../changelogs/README.md)
+1. [x] `backend/app/services/llm/` + `settings_ai.py` + `tag_category_suggest.py`  
+2. [x] `GET/PUT/POST /api/settings/ai`（及 `/api/settings/ai/config`）  
+3. [x] `POST .../tags/suggest-categories`、`POST .../tags/apply-category-suggestions`（含 stream）  
+4. [x] `python scripts/export_openapi.py` → 提交 `contracts/openapi.json`  
+5. [x] 标签管理页：预览 + 确认 UI  
+6. [x] 测试：无 Key 降级、分批、非法 category_id、apply 幂等  
+7. [x] [`changelogs/CHANGELOG_2026-06-02.md`](../changelogs/CHANGELOG_2026-06-02.md)
 
-### 9.2 推荐工作台（P1，后续）
+**可选余量（Step 3）**：suggest 附带项目 `description`；Dialog 导出 JSON / snapshot 撤销。
 
-1. [ ] 草稿表 migration + CRUD API  
-2. [ ] `generate-copy` + 前端工作台页  
-3. [ ] 功能区入口与路由  
+### 9.2 推荐工作台 / 内容工厂（P1–P2）✅ 主体已交付
+
+1. [x] 草稿表 + CRUD API（`content_factory_drafts`）  
+2. [x] `generate-copy` + 前端 **项目推广**页（Step 1–4）  
+3. [x] 功能区 **内容工厂** 入口与路由  
+4. [x] AI 封面 + 风格库 + Step 4 导出发布（2026-06-17～06-26）
+
+**待办**：多图 `publish_images[]`、轮播 Tab、推荐 Agent — 见 [`PROJECT_PILOT_待办清单_2026-06-27.md`](./PROJECT_PILOT_待办清单_2026-06-27.md)
 
 ---
 
@@ -415,8 +420,8 @@ flowchart LR
 | 主题探索 query 扩展 | 机器翻译 | **生产可用** | 维护 |
 | GitHub enrich | REST | **生产可用** | 维护 |
 | 项目理解 | **Zread / DeepWiki 外链** | **生产可用** | 增强外链即可 |
-| **标签 AI 分类** | 批量 LLM | **待建设** | **P0** |
-| **推荐话术 / 配图** | LLM + 图像 API | **待建设** | **P1–P2** |
+| **标签 AI 分类** | 批量 LLM | **生产可用** | 维护（Step 3 可选） |
+| **推荐话术 / 配图** | LLM + 图像 API | **生产可用**（内容工厂） | 维护 / 多图轮播 |
 | `ai_summary` LLM 生成 | — | **战略放弃** | — |
 | Agent / 语义搜索 | tool loop | **规划中** | **P3** |
 

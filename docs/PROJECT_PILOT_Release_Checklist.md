@@ -1,8 +1,9 @@
 # Project Pilot — 发版检查清单（v0.1.0）
 
-> 文档版本：v1.0  
-> 更新日期：2026-05-24  
+> 文档版本：v1.1  
+> 更新日期：2026-06-27  
 > 适用：**首次 GitHub Release**（含桌面安装包上传流程）  
+> **说明**：若尚未完成本地构建与冒烟，请先完成 [待办清单 — 桌面 v0.2.0 阶段 A](./PROJECT_PILOT_待办清单_2026-06-27.md#桌面-v020-发版分阶段)；**§C GitHub Release 可暂缓**，由开发者亲手操作时再执行。  
 > 关联：[桌面工程化指南](./PROJECT_PILOT_Desktop_Engineering_Guide.md)、[changelogs/README.md](../changelogs/README.md)
 
 ---

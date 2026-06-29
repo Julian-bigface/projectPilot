@@ -1,6 +1,7 @@
 import { ChevronDown, Clock, Folder, Tags } from "lucide-react"
 import { forwardRef, useMemo, type ReactNode } from "react"
 
+import { LibraryAddedTimeFilterPanel } from "@/components/library/library-added-time-filter-panel"
 import { LibraryFolderFilterPanel } from "@/components/library/library-folder-filter-panel"
 import { LibraryTagFilterPanel } from "@/components/library/library-tag-filter-panel"
 import { Popover, PopoverTrigger } from "@/components/ui/popover"
@@ -72,6 +73,7 @@ export function LibraryBrowseToolbar({ tree, scopeFiles }: LibraryBrowseToolbarP
   const {
     selectedTagIds,
     selectedFolderIds,
+    addedTimePreset,
     folderFilterDisabled,
     hasActiveFilters,
     clearFilters,
@@ -96,6 +98,7 @@ export function LibraryBrowseToolbar({ tree, scopeFiles }: LibraryBrowseToolbarP
 
   const tagsActive = selectedTagIds.length > 0
   const foldersActive = selectedFolderIds.length > 0
+  const timeActive = addedTimePreset !== null
 
   return (
     <section aria-label="筛选" className="-mt-3 -mb-3 flex flex-wrap items-center gap-1.5">
@@ -140,9 +143,14 @@ export function LibraryBrowseToolbar({ tree, scopeFiles }: LibraryBrowseToolbarP
         </Popover>
       )}
 
-      <FilterPill disabled label="时间（即将支持）">
-        <Clock className="size-3.5 shrink-0 opacity-80" aria-hidden />
-      </FilterPill>
+      <Popover>
+        <PopoverTrigger asChild>
+          <FilterPill active={timeActive} label="添加时间" showTooltip={false}>
+            <Clock className="size-3.5 shrink-0 opacity-80" aria-hidden />
+          </FilterPill>
+        </PopoverTrigger>
+        <LibraryAddedTimeFilterPanel />
+      </Popover>
 
       {hasActiveFilters ? (
         <button

@@ -78,11 +78,14 @@ async def test_ai_config_put_multi_provider(client: AsyncClient) -> None:
     data = res.json()
     assert len(data["providers"]) == 2
     assert data["scenarios"]["tag_classification"]["model"] == "MiniMax-M3"
-    assert data["providers"][0]["has_api_key"] is True
-    assert data["providers"][0]["api_key_preview"] == "7890"
+    default_provider = next(p for p in data["providers"] if p["id"] == "default")
+    assert default_provider["has_api_key"] is True
+    assert default_provider["api_key"] == "sk-testkey1234567890"
+    assert default_provider["api_key_preview"] == "7890"
 
     get_res = await client.get("/settings/ai/config")
-    assert get_res.json()["providers"][0]["has_api_key"] is True
+    get_default = next(p for p in get_res.json()["providers"] if p["id"] == "default")
+    assert get_default["api_key"] == "sk-testkey1234567890"
 
 
 @pytest.mark.asyncio
@@ -105,7 +108,7 @@ async def test_ai_settings_put_and_key_preview(client: AsyncClient) -> None:
     assert data["api_key_length"] == len("sk-testkey1234567890")
 
     config_res = await client.get("/settings/ai/config")
-    default_provider = config_res.json()["providers"][0]
+    default_provider = next(p for p in config_res.json()["providers"] if p["id"] == "default")
     assert default_provider["has_api_key"] is True
 
 
@@ -173,6 +176,44 @@ async def test_ai_test_recommend_image_scenario(client: AsyncClient) -> None:
         res = await client.post(
             "/settings/ai/test?scenario_id=recommend_image",
         )
+
+    assert res.status_code == 200
+    data = res.json()
+    assert data["ok"] is True
+    assert data["sample"] == "image_ok"
+    mock_test.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_ai_test_image_preset_without_scenario(client: AsyncClient) -> None:
+    await client.put(
+        "/settings/ai/config",
+        json={
+            "providers": [
+                {
+                    "id": "img",
+                    "name": "RootFlow",
+                    "preset_id": "rootflowai-image",
+                    "base_url": "https://api.rootflowai.com/v1",
+                    "models": ["gemini-2.5-flash-image"],
+                    "default_model": "gemini-2.5-flash-image",
+                    "api_key": "sk-test-image",
+                }
+            ],
+            "default_provider_id": "img",
+            "scenarios": {
+                "tag_classification": {"provider_id": "img", "model": "gemini-2.5-flash-image"},
+                "recommend_copy": {"provider_id": "img", "model": "gemini-2.5-flash-image"},
+                "recommend_image": {"provider_id": "img", "model": "gemini-2.5-flash-image"},
+            },
+        },
+    )
+
+    with patch(
+        "app.api.settings.probe_image_connection",
+        new_callable=AsyncMock,
+    ) as mock_test:
+        res = await client.post("/settings/ai/test?provider_id=img")
 
     assert res.status_code == 200
     data = res.json()

@@ -3,10 +3,13 @@ import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import {
+  XHS_TITLE_LIMIT,
+  countXhsTitleUnits,
+  isXhsTitleOverLimit,
+} from "@/lib/xhs-title-length"
 import { cn } from "@/lib/utils"
 import type { RecommendPlatform } from "@/types/content-factory"
-
-const XHS_TITLE_LIMIT = 20
 
 export function PromotionTitlePicker({
   platform,
@@ -26,7 +29,8 @@ export function PromotionTitlePicker({
   onSuggestTitles: () => void
 }) {
   const [open, setOpen] = useState(false)
-  const overLimit = platform === "xiaohongshu" && title.length > XHS_TITLE_LIMIT
+  const titleUnits = platform === "xiaohongshu" ? countXhsTitleUnits(title) : title.length
+  const overLimit = platform === "xiaohongshu" && isXhsTitleOverLimit(title)
 
   const handleSelect = (value: string) => {
     onSelectTitle(value)
@@ -42,7 +46,7 @@ export function PromotionTitlePicker({
             overLimit && "text-destructive font-medium"
           )}
         >
-          {title.length} / {XHS_TITLE_LIMIT}
+          {titleUnits} / {XHS_TITLE_LIMIT}
         </span>
       ) : null}
 

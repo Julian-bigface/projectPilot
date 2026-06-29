@@ -2,6 +2,7 @@ import { Factory, LayoutGrid, Library, TrendingUp } from "lucide-react"
 import { NavLink, useLocation } from "react-router"
 
 import { RailUserMenu } from "@/components/layout/rail-user-menu"
+import { BOARD_NAV_ENABLED } from "@/config/feature-flags"
 import { contentFactoryEntryHref } from "@/lib/content-factory-path"
 import { cn } from "@/lib/utils"
 
@@ -48,9 +49,15 @@ export function FunctionRail() {
       >
         <Factory className="size-[18px]" aria-hidden />
       </NavLink>
-      <NavLink to="/projects/board" className={({ isActive }) => cn(railBtn, isActive && "active")} title="看板">
-        <LayoutGrid className="size-[18px]" aria-hidden />
-      </NavLink>
+      {BOARD_NAV_ENABLED ? (
+        <NavLink
+          to="/projects/board"
+          className={({ isActive }) => cn(railBtn, isActive && "active")}
+          title="看板"
+        >
+          <LayoutGrid className="size-[18px]" aria-hidden />
+        </NavLink>
+      ) : null}
 
       <div className="mt-auto flex w-full shrink-0 flex-col px-1 pb-1">
         <RailUserMenu settingsActive={settingsActive} />

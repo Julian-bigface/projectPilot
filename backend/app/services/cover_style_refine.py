@@ -32,6 +32,10 @@ _STYLE_PROMPT_PATH = (
     / "refine_style.txt"
 )
 
+# 整套风格 JSON 较长；4096 在 MiniMax 等模型上约 20% 截断（见 refine 压测）
+_REFINE_STYLE_MAX_TOKENS = 8192
+_REFINE_TEMPLATE_MAX_TOKENS = 4096
+
 _REQUIRED_PLACEHOLDERS = (
     "{project_name}",
     "{project_description}",
@@ -114,7 +118,7 @@ async def refine_prompt_template(
             system="你是 prompt 编辑助手，只输出 JSON object。",
             user=user_prompt,
             temperature=0.3,
-            max_tokens=2048,
+            max_tokens=_REFINE_TEMPLATE_MAX_TOKENS,
             json_mode=True,
         )
         data = extract_first_json_object(raw)
@@ -175,7 +179,7 @@ async def refine_cover_style(
             system="你是视觉设计系统分析师，只输出 JSON object。prompt_template 正文须用中文。",
             user=user_prompt,
             temperature=0.35,
-            max_tokens=4096,
+            max_tokens=_REFINE_STYLE_MAX_TOKENS,
             json_mode=True,
         )
         data = extract_first_json_object(raw)

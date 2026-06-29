@@ -32,6 +32,8 @@ from app.services.recommend_image import ImageProviderError, probe_image_connect
 from app.services.settings_ai import (
     load_ai_config,
     resolve_ai_runtime_config,
+    resolve_provider_preset_id,
+    is_image_only_preset,
     resolve_ai_settings_for_read,
     set_default_provider_api_key,
     update_ai_config,
@@ -245,7 +247,13 @@ async def post_ai_test(
             message="未配置 API Key：请在设置中保存 MiniMax / 其他供应商的 API Key",
         )
 
-    if scenario_id == "recommend_image":
+    effective_scenario = scenario_id
+    if effective_scenario is None and provider_id and is_image_only_preset(
+        await resolve_provider_preset_id(db, provider_id=provider_id)
+    ):
+        effective_scenario = "recommend_image"
+
+    if effective_scenario == "recommend_image":
         try:
             await probe_image_connection(
                 base_url=base_url,

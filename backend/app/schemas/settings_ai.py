@@ -39,6 +39,10 @@ class AiProviderRead(BaseModel):
     models: list[str] = Field(default_factory=list)
     default_model: str = Field(default="")
     has_api_key: bool = False
+    api_key: str | None = Field(
+        default=None,
+        description="已保存的 API Key 全文（本地应用设置页回显；未配置时为 null）",
+    )
     api_key_preview: str | None = None
     api_key_length: int | None = None
     is_default: bool = False
